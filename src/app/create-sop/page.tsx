@@ -29,6 +29,8 @@ const sopStepSchema = z.object({
   nextStepNo: z.string().optional(),
   sla: z.coerce.number().int().positive("SLA must be a positive number."),
   owner: z.string().email("Owner must be a valid email."),
+  reviewer: z.string().email("Reviewer must be a valid email."),
+  approver: z.string().email("Approver must be a valid email."),
   status: z.enum(["Draft", "Review", "Approved"]),
 });
 
@@ -90,7 +92,7 @@ export default function CreateSopPage() {
   }
 
   const handleAppend = () => {
-    append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', status: 'Draft', nextStepYes: '', nextStepNo: '' });
+    append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', status: 'Draft', nextStepYes: '', nextStepNo: '' });
   }
 
   const handleRemove = (index: number) => {
@@ -266,12 +268,18 @@ export default function CreateSopPage() {
                       )} />
                     </div>
                   )}
-                  <div className="grid sm:grid-cols-3 gap-4">
+                  <div className="grid sm:grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                      <FormField control={form.control} name={`steps.${index}.sla`} render={({ field }) => (
                       <FormItem><FormLabel>SLA (days)</FormLabel><FormControl><Input type="number" min="0" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                      <FormField control={form.control} name={`steps.${index}.owner`} render={({ field }) => (
                       <FormItem><FormLabel>Owner</FormLabel><FormControl><Input placeholder="owner@company.com" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name={`steps.${index}.reviewer`} render={({ field }) => (
+                      <FormItem><FormLabel>Reviewer</FormLabel><FormControl><Input placeholder="reviewer@company.com" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name={`steps.${index}.approver`} render={({ field }) => (
+                      <FormItem><FormLabel>Approver</FormLabel><FormControl><Input placeholder="approver@company.com" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name={`steps.${index}.status`} render={({ field }) => (
                       <FormItem><FormLabel>Status</FormLabel>
