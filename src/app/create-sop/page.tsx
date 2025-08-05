@@ -61,6 +61,8 @@ export default function CreateSopPage() {
     },
   });
   
+  const sopId = form.watch("sopId");
+
   useEffect(() => {
     const newSopId = `SOP-${Date.now().toString().slice(-6)}`;
     form.setValue('sopId', newSopId);
@@ -187,7 +189,10 @@ export default function CreateSopPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>SOP Steps</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>SOP Steps</CardTitle>
+                <span className="text-sm font-mono text-muted-foreground bg-muted px-2 py-1 rounded-md">{sopId}</span>
+              </div>
               <CardDescription>Define the individual steps of the procedure. You can reorder them.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
