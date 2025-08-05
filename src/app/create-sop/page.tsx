@@ -173,7 +173,9 @@ export default function CreateSopPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
-                 <FormItem>
+              </div>
+              <div className="grid md:grid-cols-3 gap-6">
+                <FormItem>
                   <FormLabel>Date Created</FormLabel>
                   <FormControl><Input value={dateCreated} disabled /></FormControl>
                 </FormItem>
@@ -185,7 +187,7 @@ export default function CreateSopPage() {
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="sla" render={({ field }) => (
-                  <FormItem className="md:col-start-2">
+                  <FormItem>
                     <FormLabel>Standard Time (มาตราฐานเวลา)</FormLabel>
                     <FormControl><Input type="number" min="1" {...field} /></FormControl>
                     <FormMessage />
