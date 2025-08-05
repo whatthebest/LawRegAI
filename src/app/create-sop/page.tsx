@@ -25,6 +25,8 @@ const sopStepSchema = z.object({
   title: z.string().min(3, "Step title must be at least 3 characters."),
   detail: z.string().min(10, "Step detail must be at least 10 characters."),
   stepType: z.enum(['Sequence', 'Decision']),
+  nextStepYes: z.string().optional(),
+  nextStepNo: z.string().optional(),
   sla: z.coerce.number().int().positive("SLA must be a positive number."),
   owner: z.string().email("Owner must be a valid email."),
   status: z.enum(["Draft", "Review", "Approved"]),
@@ -64,6 +66,7 @@ export default function CreateSopPage() {
   });
   
   const sopId = form.watch("sopId");
+  const steps = form.watch("steps");
 
   useEffect(() => {
     const newSopId = `SOP-${Date.now().toString().slice(-6)}`;
@@ -87,7 +90,7 @@ export default function CreateSopPage() {
   }
 
   const handleAppend = () => {
-    append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', status: 'Draft' });
+    append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', status: 'Draft', nextStepYes: '', nextStepNo: '' });
   }
 
   const handleRemove = (index: number) => {
@@ -253,6 +256,16 @@ export default function CreateSopPage() {
                         <FormMessage />
                       </FormItem>
                     )} />
+                  {steps[index]?.stepType === 'Decision' && (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <FormField control={form.control} name={`steps.${index}.nextStepYes`} render={({ field }) => (
+                        <FormItem><FormLabel>Next step (Yes)</FormLabel><FormControl><Input placeholder="e.g., 2" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name={`steps.${index}.nextStepNo`} render={({ field }) => (
+                        <FormItem><FormLabel>Next step (No)</FormLabel><FormControl><Input placeholder="e.g., 3" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                    </div>
+                  )}
                   <div className="grid sm:grid-cols-3 gap-4">
                      <FormField control={form.control} name={`steps.${index}.sla`} render={({ field }) => (
                       <FormItem><FormLabel>SLA (days)</FormLabel><FormControl><Input type="number" min="0" {...field} /></FormControl><FormMessage /></FormItem>
