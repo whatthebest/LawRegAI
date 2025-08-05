@@ -29,6 +29,7 @@ const sopStepSchema = z.object({
 });
 
 const sopFormSchema = z.object({
+  sopId: z.string(),
   title: z.string().min(5, "SOP title must be at least 5 characters."),
   description: z.string().min(20, "Description must be at least 20 characters."),
   department: z.enum(["Operations", "Engineering", "HR", "Marketing"]),
@@ -48,16 +49,10 @@ export default function CreateSopPage() {
   const router = useRouter();
   const [dateCreated, setDateCreated] = useState('');
 
-  useEffect(() => {
-    setDateCreated(new Date().toLocaleDateString('en-CA'));
-    if (user) {
-      form.setValue('responsiblePerson', user.name);
-    }
-  }, [user]);
-
   const form = useForm<SopFormValues>({
     resolver: zodResolver(sopFormSchema),
     defaultValues: {
+      sopId: '',
       title: "",
       description: "",
       responsiblePerson: user?.name || '',
@@ -65,6 +60,16 @@ export default function CreateSopPage() {
       steps: [],
     },
   });
+  
+  useEffect(() => {
+    const newSopId = `SOP-${Date.now().toString().slice(-6)}`;
+    form.setValue('sopId', newSopId);
+    setDateCreated(new Date().toLocaleDateString('en-CA'));
+    if (user) {
+      form.setValue('responsiblePerson', user.name);
+    }
+  }, [user, form.setValue]);
+
 
   const { fields, append, remove, swap } = useFieldArray({
     control: form.control,
@@ -97,6 +102,13 @@ export default function CreateSopPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
+                 <FormField control={form.control} name="sopId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SOP ID</FormLabel>
+                    <FormControl><Input {...field} disabled /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <FormField control={form.control} name="title" render={({ field }) => (
                   <FormItem>
                     <FormLabel>SOP Title</FormLabel>
@@ -137,6 +149,8 @@ export default function CreateSopPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
+              </div>
+              <div className="grid md:grid-cols-3 gap-6">
                 <FormItem>
                   <FormLabel>Date Created</FormLabel>
                   <FormControl><Input value={dateCreated} disabled /></FormControl>
