@@ -47,25 +47,6 @@ export function SopTimeline({ steps }: { steps: SOPStep[] }) {
                             </div>
                         </div>
                     )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold">SLA:</span>
-                            <span>{step.sla} day{step.sla !== 1 ? 's' : ''}</span>
-                        </div>
-                        <div className="flex items-center gap-2 truncate">
-                            <span className="font-semibold">Owner:</span>
-                            <span className="truncate">{step.owner}</span>
-                        </div>
-                        <div className="flex items-center gap-2 truncate">
-                            <span className="font-semibold">Reviewer:</span>
-                            <span className="truncate">{step.reviewer}</span>
-                        </div>
-                        <div className="flex items-center gap-2 truncate">
-                            <span className="font-semibold">Approver:</span>
-                            <span className="truncate">{step.approver}</span>
-                        </div>
-                    </div>
                 </CardContent>
             </Card>
           </div>
