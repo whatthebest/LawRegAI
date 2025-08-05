@@ -4,22 +4,6 @@
 import { SOPStep } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 import { CheckCircle, Circle, Clock, FileText, GitBranch, ChevronsRight } from "lucide-react";
-import { Badge } from "./ui/badge";
-
-const statusIcons = {
-  Approved: <CheckCircle className="h-5 w-5 text-green-500" />,
-  Review: <Clock className="h-5 w-5 text-yellow-500" />,
-  Draft: <FileText className="h-5 w-5 text-gray-500" />,
-};
-
-const getStatusVariant = (status: SOPStep['status']) => {
-    switch (status) {
-        case 'Approved': return 'default';
-        case 'Review': return 'secondary';
-        case 'Draft': return 'outline';
-        default: return 'outline';
-    }
-}
 
 export function SopTimeline({ steps }: { steps: SOPStep[] }) {
   return (
@@ -28,11 +12,11 @@ export function SopTimeline({ steps }: { steps: SOPStep[] }) {
       <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-border -translate-x-1/2"></div>
 
       <div className="space-y-8">
-        {steps.map((step) => (
+        {steps.map((step, index) => (
           <div key={step.id} className="relative flex items-start">
-            <div className="absolute left-4 top-2.5 h-full -translate-x-1/2">
+             <div className="absolute left-4 top-2.5 h-full -translate-x-1/2">
                 <div className="flex h-5 w-5 items-center justify-center rounded-full bg-background border-2 border-primary">
-                    {statusIcons[step.status] || <Circle className="h-3 w-3 text-primary" />}
+                    <Circle className="h-3 w-3 text-primary" />
                 </div>
             </div>
             <Card className="ml-8 w-full shadow-sm">
