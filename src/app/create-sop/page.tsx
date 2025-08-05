@@ -185,7 +185,7 @@ export default function CreateSopPage() {
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="sla" render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="md:col-start-2">
                     <FormLabel>Standard Time (มาตราฐานเวลา)</FormLabel>
                     <FormControl><Input type="number" min="1" {...field} /></FormControl>
                     <FormMessage />
