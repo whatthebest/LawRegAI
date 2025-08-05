@@ -246,7 +246,7 @@ export default function CreateSopPage() {
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select step type" />
-                            </SelectTrigger>
+                            </Trigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="Sequence">Sequence</SelectItem>
@@ -259,10 +259,10 @@ export default function CreateSopPage() {
                   {steps[index]?.stepType === 'Decision' && (
                     <div className="grid sm:grid-cols-2 gap-4">
                       <FormField control={form.control} name={`steps.${index}.nextStepYes`} render={({ field }) => (
-                        <FormItem><FormLabel>Next step (Yes)</FormLabel><FormControl><Input placeholder="e.g., 2" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Next step (Yes)</FormLabel><FormControl><Input type="number" placeholder="e.g., 2" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name={`steps.${index}.nextStepNo`} render={({ field }) => (
-                        <FormItem><FormLabel>Next step (No)</FormLabel><FormControl><Input placeholder="e.g., 3" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Next step (No)</FormLabel><FormControl><Input type="number" placeholder="e.g., 3" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                     </div>
                   )}
