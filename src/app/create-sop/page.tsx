@@ -228,8 +228,6 @@ export default function CreateSopPage() {
                    <div className="flex justify-between items-center">
                     <h4 className="font-semibold text-lg text-primary">Step {field.stepOrder}</h4>
                      <div className="flex items-center gap-1">
-                      <Button type="button" variant="ghost" size="icon" disabled={index === 0} onClick={() => handleSwap(index, index - 1)}><ArrowUp className="w-4 h-4" /></Button>
-                      <Button type="button" variant="ghost" size="icon" disabled={index === fields.length - 1} onClick={() => handleSwap(index, index + 1)}><ArrowDown className="w-4 h-4" /></Button>
                       <Button type="button" variant="ghost" size="icon" onClick={() => handleRemove(index)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                     </div>
                   </div>
