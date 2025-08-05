@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm, useFieldArray, Controller } from "react-hook-form";
@@ -136,27 +137,25 @@ export default function CreateSopPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
-              </div>
-               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <FormItem>
+                  <FormLabel>Date Created</FormLabel>
+                  <FormControl><Input value={dateCreated} disabled /></FormControl>
+                </FormItem>
+                <FormField control={form.control} name="responsiblePerson" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date Created</FormLabel>
-                    <FormControl><Input value={dateCreated} disabled /></FormControl>
+                    <FormLabel>Responsible Person (ผู้รับผิดชอบ)</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
                   </FormItem>
-                  <FormField control={form.control} name="responsiblePerson" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Responsible Person (ผู้รับผิดชอบ)</FormLabel>
-                      <FormControl><Input {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="sla" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Standard Time (มาตราฐานเวลา)</FormLabel>
-                      <FormControl><Input type="number" min="1" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                </div>
+                )} />
+                <FormField control={form.control} name="sla" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Standard Time (มาตราฐานเวลา)</FormLabel>
+                    <FormControl><Input type="number" min="1" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
               <FormField control={form.control} name="description" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Description</FormLabel>
