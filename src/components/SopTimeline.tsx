@@ -1,3 +1,4 @@
+
 "use client";
 
 import { SOPStep } from "@/lib/types";
@@ -48,7 +49,7 @@ export function SopTimeline({ steps }: { steps: SOPStep[] }) {
                     <p className="text-muted-foreground">{step.detail}</p>
                     
                     {step.stepType === 'Decision' && (
-                        <div className="flex items-center gap-6 text-sm bg-muted/50 p-3 rounded-md">
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm bg-muted/50 p-3 rounded-md">
                             <div className="flex items-center gap-2">
                                 <GitBranch className="h-4 w-4 text-primary" />
                                 <strong>Decision Path</strong>
@@ -64,22 +65,22 @@ export function SopTimeline({ steps }: { steps: SOPStep[] }) {
                         </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                         <div className="flex items-center gap-2">
-                            <span className="font-semibold">Owner:</span>
-                            <span>{step.owner}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold">Reviewer:</span>
-                            <span>{step.reviewer}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold">Approver:</span>
-                            <span>{step.approver}</span>
-                        </div>
-                         <div className="flex items-center gap-2">
                             <span className="font-semibold">SLA:</span>
                             <span>{step.sla} day{step.sla !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="flex items-center gap-2 truncate">
+                            <span className="font-semibold">Owner:</span>
+                            <span className="truncate">{step.owner}</span>
+                        </div>
+                        <div className="flex items-center gap-2 truncate">
+                            <span className="font-semibold">Reviewer:</span>
+                            <span className="truncate">{step.reviewer}</span>
+                        </div>
+                        <div className="flex items-center gap-2 truncate">
+                            <span className="font-semibold">Approver:</span>
+                            <span className="truncate">{step.approver}</span>
                         </div>
                     </div>
                 </CardContent>
