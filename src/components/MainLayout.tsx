@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Header from "@/components/Header";
 import { Loader2 } from "lucide-react";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import AppSidebar from "./AppSidebar";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -26,11 +28,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-background">
-      <Header />
-      <main className="flex-1 container mx-auto py-8 px-4 md:px-6">
-        {children}
-      </main>
-    </div>
+    <SidebarProvider>
+        <AppSidebar />
+        <div className="flex flex-col w-full">
+            <Header />
+            <SidebarInset>
+                <main className="flex-1 p-4 md:p-6 lg:p-8">
+                    {children}
+                </main>
+            </SidebarInset>
+        </div>
+    </SidebarProvider>
   );
 }
