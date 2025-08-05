@@ -15,6 +15,16 @@ const getSop = (id: string) => {
   return mockSops.find(sop => sop.id === id);
 };
 
+const getStatusVariant = (status: SOPStatus) => {
+  switch (status) {
+    case 'Approved': return 'default';
+    case 'In Review': return 'secondary';
+    case 'Draft': return 'outline';
+    case 'Archived': return 'destructive';
+    default: return 'outline';
+  }
+};
+
 export default function SopDetailPage({ params }: { params: { id: string } }) {
   const sop = getSop(params.id);
 
@@ -29,9 +39,10 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                 <Link href="/sops" className="text-sm text-primary hover:underline">
                     &larr; Back to all SOPs
                 </Link>
-                <h1 className="text-4xl font-bold text-primary flex items-center gap-4">
-                    {sop.title}
-                </h1>
+                <div className="flex items-center gap-4">
+                    <h1 className="text-4xl font-bold text-primary">{sop.title}</h1>
+                    <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
+                </div>
                 <p className="text-lg text-muted-foreground">{sop.description}</p>
             </div>
             <div className='flex gap-2 flex-wrap'>
