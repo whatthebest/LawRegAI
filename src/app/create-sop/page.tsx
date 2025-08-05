@@ -88,7 +88,11 @@ export default function CreateSopPage() {
           section: sopToEdit.section,
           responsiblePerson: sopToEdit.responsiblePerson,
           sla: sopToEdit.sla,
-          steps: sopToEdit.steps.map(s => ({...s, nextStepYes: s.nextStepYes?.toString(), nextStepNo: s.nextStepNo?.toString()})),
+          steps: sopToEdit.steps.map(s => ({
+              ...s, 
+              nextStepYes: s.nextStepYes?.toString(), 
+              nextStepNo: s.nextStepNo?.toString()
+          })),
         });
         setDateCreated(new Date(sopToEdit.createdAt).toLocaleDateString('en-CA'));
       }
