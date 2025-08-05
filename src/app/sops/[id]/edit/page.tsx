@@ -19,8 +19,10 @@ import { sopDepartments, mockSops } from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 const sopStepSchema = z.object({
+  id: z.string(),
   stepOrder: z.number(),
   title: z.string().min(3, "Step title must be at least 3 characters."),
   detail: z.string().min(10, "Step detail must be at least 10 characters."),
@@ -31,6 +33,7 @@ const sopStepSchema = z.object({
   owner: z.string().email("Owner must be a valid email."),
   reviewer: z.string().email("Reviewer must be a valid email."),
   approver: z.string().email("Approver must be a valid email."),
+  status: z.enum(['Draft', 'Review', 'Approved']),
 });
 
 const sopFormSchema = z.object({
@@ -107,8 +110,8 @@ export default function EditSopPage() {
   }, [sopIdToEdit, form, replace]);
 
   const handleAppend = () => {
-    append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', nextStepYes: '', nextStepNo: '' });
-  }
+    append({ id: `new-step-${Date.now()}`, stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', status: 'Draft', nextStepYes: '', nextStepNo: '' });
+  };
 
   const handleRemove = (index: number) => {
     remove(index);
@@ -118,7 +121,7 @@ export default function EditSopPage() {
             form.setValue(`steps.${i}.stepOrder`, i + 1, { shouldDirty: true });
         }
     });
-  }
+  };
 
   function onSubmit(data: SopFormValues) {
     console.log(data);
@@ -127,12 +130,15 @@ export default function EditSopPage() {
       description: `The SOP "${data.title}" has been saved.`,
       className: "bg-green-100 dark:bg-green-900 border-green-400 dark:border-green-600",
     });
-    router.push("/sops");
+    router.push(`/sops/${sopIdToEdit}`);
   }
 
   return (
     <MainLayout>
       <div className="space-y-4 mb-8">
+        <Link href={`/sops/${sopIdToEdit}`} className="text-sm text-primary hover:underline">
+            &larr; Back to SOP Timeline
+        </Link>
         <h1 className="text-4xl font-bold text-primary">Edit SOP</h1>
         <p className="text-lg text-muted-foreground">
             Update the details for this Standard Operating Procedure.
@@ -262,7 +268,7 @@ export default function EditSopPage() {
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select step type" />
-                            </SelectTrigger>
+                            </Trigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="Sequence">Sequence</SelectItem>
