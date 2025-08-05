@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const sopStepSchema = z.object({
+  stepOrder: z.number(),
   title: z.string().min(3, "Step title must be at least 3 characters."),
   detail: z.string().min(10, "Step detail must be at least 10 characters."),
   sla: z.coerce.number().int().positive("SLA must be a positive number."),
@@ -77,6 +78,27 @@ export default function CreateSopPage() {
     control: form.control,
     name: "steps",
   });
+
+  const handleSwap = (index1: number, index2: number) => {
+    swap(index1, index2);
+    form.setValue(`steps.${index1}.stepOrder`, index2 + 1, { shouldDirty: true });
+    form.setValue(`steps.${index2}.stepOrder`, index1 + 1, { shouldDirty: true });
+  }
+
+  const handleAppend = () => {
+    append({ stepOrder: fields.length + 1, title: '', detail: '', sla: 1, owner: '', status: 'Draft' });
+  }
+
+  const handleRemove = (index: number) => {
+    remove(index);
+    // After removing, we need to update the stepOrder for all subsequent steps
+    const currentSteps = form.getValues('steps');
+    currentSteps.forEach((step, i) => {
+        if (i >= index) {
+            form.setValue(`steps.${i}.stepOrder`, i + 1, { shouldDirty: true });
+        }
+    });
+  }
 
   function onSubmit(data: SopFormValues) {
     console.log(data);
@@ -151,9 +173,7 @@ export default function CreateSopPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
-              </div>
-              <div className="grid md:grid-cols-3 gap-6">
-                <FormItem>
+                 <FormItem>
                   <FormLabel>Date Created</FormLabel>
                   <FormControl><Input value={dateCreated} disabled /></FormControl>
                 </FormItem>
@@ -199,11 +219,11 @@ export default function CreateSopPage() {
               {fields.map((field, index) => (
                 <div key={field.id} className="p-4 border rounded-lg relative space-y-4 bg-background/50">
                    <div className="flex justify-between items-center">
-                    <h4 className="font-semibold text-lg text-primary">Step {index + 1}</h4>
+                    <h4 className="font-semibold text-lg text-primary">Step {field.stepOrder}</h4>
                      <div className="flex items-center gap-1">
-                      <Button type="button" variant="ghost" size="icon" disabled={index === 0} onClick={() => swap(index, index - 1)}><ArrowUp className="w-4 h-4" /></Button>
-                      <Button type="button" variant="ghost" size="icon" disabled={index === fields.length - 1} onClick={() => swap(index, index + 1)}><ArrowDown className="w-4 h-4" /></Button>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                      <Button type="button" variant="ghost" size="icon" disabled={index === 0} onClick={() => handleSwap(index, index - 1)}><ArrowUp className="w-4 h-4" /></Button>
+                      <Button type="button" variant="ghost" size="icon" disabled={index === fields.length - 1} onClick={() => handleSwap(index, index + 1)}><ArrowDown className="w-4 h-4" /></Button>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => handleRemove(index)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                     </div>
                   </div>
                   <Separator />
@@ -233,7 +253,7 @@ export default function CreateSopPage() {
                   </div>
                 </div>
               ))}
-              <Button type="button" variant="outline" onClick={() => append({ title: '', detail: '', sla: 1, owner: '', status: 'Draft' })} className="gap-2">
+              <Button type="button" variant="outline" onClick={handleAppend} className="gap-2">
                 <PlusCircle className="w-4 h-4" /> Add New Step
               </Button>
                {form.formState.errors.steps && (
