@@ -35,7 +35,7 @@ export default function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <Link href="/" className="flex items-center gap-2 font-bold font-headline text-lg group-data-[collapsible=icon]:hidden">
+        <Link href="/" className="flex items-center gap-2 font-bold text-lg group-data-[collapsible=icon]:hidden">
           <Bot className="h-6 w-6 text-primary" />
           <span>SOP Central</span>
         </Link>

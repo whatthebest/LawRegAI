@@ -62,7 +62,7 @@ export default function TasksPage() {
   return (
     <MainLayout>
       <div className="space-y-2 mb-8">
-        <h1 className="text-4xl font-headline text-primary">My Tasks</h1>
+        <h1 className="text-4xl font-bold text-primary">My Tasks</h1>
         <p className="text-lg text-muted-foreground">Here are all the SOP steps assigned to you.</p>
       </div>
 

@@ -40,7 +40,7 @@ const NavCard = ({ href, icon, title, description, disabled }: (typeof navItems)
       <CardHeader className="flex flex-col items-center justify-center text-center gap-4 p-6">
         {icon}
         <div className="space-y-1">
-          <CardTitle className={`font-headline ${disabled ? 'text-muted-foreground' : ''}`}>{title}</CardTitle>
+          <CardTitle className={`${disabled ? 'text-muted-foreground' : ''}`}>{title}</CardTitle>
           <CardDescription className={disabled ? 'text-muted-foreground' : ''}>{description}</CardDescription>
         </div>
       </CardHeader>
@@ -55,7 +55,7 @@ export default function HomePage() {
   return (
     <MainLayout>
       <div className="flex flex-col gap-4 md:gap-6">
-        <h1 className="text-4xl md:text-5xl font-headline text-primary">
+        <h1 className="text-4xl md:text-5xl font-bold text-primary">
           Welcome, {user?.name}!
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl">

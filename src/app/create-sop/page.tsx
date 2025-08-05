@@ -75,7 +75,7 @@ export default function CreateSopPage() {
   return (
     <MainLayout>
       <div className="space-y-4 mb-8">
-        <h1 className="text-4xl font-headline text-primary">Create New SOP</h1>
+        <h1 className="text-4xl font-bold text-primary">Create New SOP</h1>
         <p className="text-lg text-muted-foreground">Fill out the form below to create a new Standard Operating Procedure.</p>
       </div>
 

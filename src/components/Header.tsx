@@ -15,7 +15,7 @@ export default function Header() {
         <div className="md:hidden">
           <SidebarTrigger />
         </div>
-        <Link href="/" className="hidden md:flex items-center gap-2 mr-6 font-bold font-headline text-lg">
+        <Link href="/" className="hidden md:flex items-center gap-2 mr-6 font-bold text-lg">
           <Bot className="h-6 w-6 text-primary" />
           <span className="hidden sm:inline-block">SOP Central</span>
         </Link>

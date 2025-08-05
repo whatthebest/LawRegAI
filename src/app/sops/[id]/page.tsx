@@ -39,7 +39,7 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                 <Link href="/sops" className="text-sm text-primary hover:underline">
                     &larr; Back to all SOPs
                 </Link>
-                <h1 className="text-4xl font-headline text-primary flex items-center gap-4">
+                <h1 className="text-4xl font-bold text-primary flex items-center gap-4">
                     {sop.title} 
                     <Badge variant={getStatusVariant(sop.status)} className="text-base">{sop.status}</Badge>
                 </h1>

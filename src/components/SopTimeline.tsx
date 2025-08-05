@@ -38,7 +38,7 @@ export function SopTimeline({ steps }: { steps: SOPStep[] }) {
                 <CardHeader>
                     <div className="flex justify-between items-start">
                         <div>
-                            <CardTitle className="font-headline text-xl">{step.title}</CardTitle>
+                            <CardTitle className="font-bold text-xl">{step.title}</CardTitle>
                             <CardDescription>Step {index + 1}</CardDescription>
                         </div>
                         <Badge variant={getStatusVariant(step.status)}>{step.status}</Badge>

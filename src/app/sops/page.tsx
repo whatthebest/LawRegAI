@@ -41,7 +41,7 @@ export default function SopsListPage() {
     <MainLayout>
       <div className="flex justify-between items-start gap-4 mb-8 flex-wrap">
         <div className="space-y-2">
-            <h1 className="text-4xl font-headline text-primary">SOP Repository</h1>
+            <h1 className="text-4xl font-bold text-primary">SOP Repository</h1>
             <p className="text-lg text-muted-foreground">Browse, search, and manage all procedures.</p>
         </div>
         <Link href="/create-sop" passHref>
