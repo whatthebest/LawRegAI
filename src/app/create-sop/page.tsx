@@ -70,6 +70,11 @@ export default function CreateSopPage() {
     },
   });
   
+  const { fields, append, remove, replace } = useFieldArray({
+    control: form.control,
+    name: "steps",
+  });
+
   const sopId = form.watch("sopId");
   const steps = form.watch("steps");
 
@@ -88,12 +93,16 @@ export default function CreateSopPage() {
           section: sopToEdit.section,
           responsiblePerson: sopToEdit.responsiblePerson,
           sla: sopToEdit.sla,
-          steps: sopToEdit.steps.map(s => ({
-              ...s, 
-              nextStepYes: s.nextStepYes?.toString(), 
-              nextStepNo: s.nextStepNo?.toString()
-          })),
+          // Steps are handled by `replace` below
         });
+        
+        const formattedSteps = sopToEdit.steps.map(s => ({
+          ...s,
+          nextStepYes: s.nextStepYes !== undefined ? String(s.nextStepYes) : undefined,
+          nextStepNo: s.nextStepNo !== undefined ? String(s.nextStepNo) : undefined,
+        }));
+        replace(formattedSteps);
+
         setDateCreated(new Date(sopToEdit.createdAt).toLocaleDateString('en-CA'));
       }
     } else {
@@ -104,13 +113,7 @@ export default function CreateSopPage() {
           form.setValue('responsiblePerson', user.name);
         }
     }
-  }, [sopIdToEdit, user, form]);
-
-
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "steps",
-  });
+  }, [sopIdToEdit, user, form, replace]);
 
   const handleAppend = () => {
     append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', nextStepYes: '', nextStepNo: '' });
