@@ -94,13 +94,12 @@ export default function EditSopPage() {
           section: sopToEdit.section,
           responsiblePerson: sopToEdit.responsiblePerson,
           sla: sopToEdit.sla,
-          // Steps are handled by `replace` below
         });
         
         const formattedSteps = sopToEdit.steps.map(s => ({
           ...s,
-          nextStepYes: s.nextStepYes !== undefined ? String(s.nextStepYes) : undefined,
-          nextStepNo: s.nextStepNo !== undefined ? String(s.nextStepNo) : undefined,
+          nextStepYes: s.nextStepYes,
+          nextStepNo: s.nextStepNo,
         }));
         replace(formattedSteps);
 
@@ -268,7 +267,7 @@ export default function EditSopPage() {
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select step type" />
-                            </Trigger>
+                            </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="Sequence">Sequence</SelectItem>
