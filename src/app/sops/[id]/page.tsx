@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { mockSops } from '@/lib/mockData';
-import type { SOPStatus } from '@/lib/types';
+import type { SOP, SOPStatus } from '@/lib/types';
 import { format } from 'date-fns';
 import { Check, MessageSquare, Share2, FileDown, Edit } from 'lucide-react';
 import Link from 'next/link';
@@ -14,16 +14,6 @@ import Link from 'next/link';
 const getSop = (id: string) => {
   return mockSops.find(sop => sop.id === id);
 };
-
-const getStatusVariant = (status: SOPStatus) => {
-    switch (status) {
-      case 'Approved': return 'default';
-      case 'In Review': return 'secondary';
-      case 'Draft': return 'outline';
-      case 'Archived': return 'destructive';
-      default: return 'outline';
-    }
-  };
 
 export default function SopDetailPage({ params }: { params: { id: string } }) {
   const sop = getSop(params.id);
@@ -40,8 +30,7 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                     &larr; Back to all SOPs
                 </Link>
                 <h1 className="text-4xl font-bold text-primary flex items-center gap-4">
-                    {sop.title} 
-                    <Badge variant={getStatusVariant(sop.status)} className="text-base">{sop.status}</Badge>
+                    {sop.title}
                 </h1>
                 <p className="text-lg text-muted-foreground">{sop.description}</p>
             </div>
@@ -70,8 +59,28 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                     </CardHeader>
                     <CardContent className="space-y-4 text-sm">
                         <div className="flex justify-between">
+                            <span className="text-muted-foreground">SOP ID:</span>
+                            <span className="font-medium">{sop.id}</span>
+                        </div>
+                         <div className="flex justify-between">
+                            <span className="text-muted-foreground">Status:</span>
+                            <span className="font-medium">{sop.status}</span>
+                        </div>
+                        <div className="flex justify-between">
                             <span className="text-muted-foreground">Department:</span>
                             <span className="font-medium">{sop.department}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Cluster:</span>
+                            <span className="font-medium">{sop.cluster || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Group:</span>
+                            <span className="font-medium">{sop.group || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Section:</span>
+                            <span className="font-medium">{sop.section || 'N/A'}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Created:</span>
