@@ -31,6 +31,10 @@ const sopFormSchema = z.object({
   title: z.string().min(5, "SOP title must be at least 5 characters."),
   description: z.string().min(20, "Description must be at least 20 characters."),
   department: z.enum(["Operations", "Engineering", "HR", "Marketing"]),
+  cluster: z.string().optional(),
+  group: z.string().optional(),
+  section: z.string().optional(),
+  responsiblePerson: z.string().min(1, "Responsible person is required."),
   sla: z.coerce.number().int().positive("SLA must be a positive number."),
   steps: z.array(sopStepSchema).min(1, "At least one step is required."),
 });
@@ -45,13 +49,17 @@ export default function CreateSopPage() {
 
   useEffect(() => {
     setDateCreated(new Date().toLocaleDateString('en-CA'));
-  }, []);
+    if (user) {
+      form.setValue('responsiblePerson', user.name);
+    }
+  }, [user]);
 
   const form = useForm<SopFormValues>({
     resolver: zodResolver(sopFormSchema),
     defaultValues: {
       title: "",
       description: "",
+      responsiblePerson: user?.name || '',
       sla: 1,
       steps: [],
     },
@@ -106,6 +114,27 @@ export default function CreateSopPage() {
                   <FormMessage />
                 </FormItem>
               )} />
+              <FormField control={form.control} name="cluster" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cluster (กลุ่ม)</FormLabel>
+                  <FormControl><Input placeholder="Enter cluster" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+               <FormField control={form.control} name="group" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Group (กลุ่ม)</FormLabel>
+                  <FormControl><Input placeholder="Enter group" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+               <FormField control={form.control} name="section" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Section (ส่วนงาน)</FormLabel>
+                  <FormControl><Input placeholder="Enter section" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
               <FormField control={form.control} name="description" render={({ field }) => (
                 <FormItem className="md:col-span-2">
                   <FormLabel>Description</FormLabel>
@@ -114,21 +143,24 @@ export default function CreateSopPage() {
                 </FormItem>
               )} />
                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:col-span-2">
+                 <FormItem>
+                  <FormLabel>Date Created</FormLabel>
+                  <FormControl><Input value={dateCreated} disabled /></FormControl>
+                </FormItem>
+                <FormField control={form.control} name="responsiblePerson" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Responsible Person (ผู้รับผิดชอบ)</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                  <FormField control={form.control} name="sla" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Overall SLA (days)</FormLabel>
+                    <FormLabel>Standard Time (มาตราฐานเวลา)</FormLabel>
                     <FormControl><Input type="number" min="1" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormItem>
-                  <FormLabel>Responsible Person</FormLabel>
-                  <FormControl><Input value={user?.name || ''} disabled /></FormControl>
-                </FormItem>
-                <FormItem>
-                  <FormLabel>Date Created</FormLabel>
-                  <FormControl><Input value={dateCreated} disabled /></FormControl>
-                </FormItem>
                </div>
                 <FormItem className="md:col-span-2">
                   <FormLabel>File Attachment (Optional)</FormLabel>
