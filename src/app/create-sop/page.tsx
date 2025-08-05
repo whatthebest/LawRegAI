@@ -24,6 +24,7 @@ const sopStepSchema = z.object({
   stepOrder: z.number(),
   title: z.string().min(3, "Step title must be at least 3 characters."),
   detail: z.string().min(10, "Step detail must be at least 10 characters."),
+  stepType: z.enum(['Sequence', 'Decision']),
   sla: z.coerce.number().int().positive("SLA must be a positive number."),
   owner: z.string().email("Owner must be a valid email."),
   status: z.enum(["Draft", "Review", "Approved"]),
@@ -86,7 +87,7 @@ export default function CreateSopPage() {
   }
 
   const handleAppend = () => {
-    append({ stepOrder: fields.length + 1, title: '', detail: '', sla: 1, owner: '', status: 'Draft' });
+    append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', status: 'Draft' });
   }
 
   const handleRemove = (index: number) => {
@@ -235,6 +236,23 @@ export default function CreateSopPage() {
                   <FormField control={form.control} name={`steps.${index}.detail`} render={({ field }) => (
                     <FormItem><FormLabel>Step Detail</FormLabel><FormControl><Textarea placeholder="Describe the action to be taken in this step." {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
+                   <FormField control={form.control} name={`steps.${index}.stepType`} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Step Type</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select step type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Sequence">Sequence</SelectItem>
+                            <SelectItem value="Decision">Decision</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
                   <div className="grid sm:grid-cols-3 gap-4">
                      <FormField control={form.control} name={`steps.${index}.sla`} render={({ field }) => (
                       <FormItem><FormLabel>SLA (days)</FormLabel><FormControl><Input type="number" min="0" {...field} /></FormControl><FormMessage /></FormItem>
