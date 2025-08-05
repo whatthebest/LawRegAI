@@ -31,7 +31,6 @@ const sopStepSchema = z.object({
   owner: z.string().email("Owner must be a valid email."),
   reviewer: z.string().email("Reviewer must be a valid email."),
   approver: z.string().email("Approver must be a valid email."),
-  status: z.enum(["Draft", "Review", "Approved"]),
 });
 
 const sopFormSchema = z.object({
@@ -92,7 +91,7 @@ export default function CreateSopPage() {
   }
 
   const handleAppend = () => {
-    append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', status: 'Draft', nextStepYes: '', nextStepNo: '' });
+    append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', nextStepYes: '', nextStepNo: '' });
   }
 
   const handleRemove = (index: number) => {
@@ -268,7 +267,7 @@ export default function CreateSopPage() {
                       )} />
                     </div>
                   )}
-                  <div className="grid sm:grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                      <FormField control={form.control} name={`steps.${index}.sla`} render={({ field }) => (
                       <FormItem><FormLabel>SLA (days)</FormLabel><FormControl><Input type="number" min="0" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
@@ -280,16 +279,6 @@ export default function CreateSopPage() {
                     )} />
                     <FormField control={form.control} name={`steps.${index}.approver`} render={({ field }) => (
                       <FormItem><FormLabel>Approver</FormLabel><FormControl><Input placeholder="approver@company.com" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name={`steps.${index}.status`} render={({ field }) => (
-                      <FormItem><FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            {sopStepStatuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
-                          </SelectContent>
-                        </Select><FormMessage />
-                      </FormItem>
                     )} />
                   </div>
                 </div>
