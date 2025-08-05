@@ -246,7 +246,7 @@ export default function CreateSopPage() {
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select step type" />
-                            </Trigger>
+                            </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="Sequence">Sequence</SelectItem>
