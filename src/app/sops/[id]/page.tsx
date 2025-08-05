@@ -46,10 +46,6 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                 </div>
                 <p className="text-lg text-muted-foreground">{sop.description}</p>
             </div>
-            <div className='flex gap-2 flex-wrap'>
-                <Button variant="outline" className='gap-2'><Check className='w-4 h-4' /> Approve</Button>
-                <Button variant="outline" className='gap-2'><MessageSquare className='w-4 h-4' /> Comment</Button>
-            </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
