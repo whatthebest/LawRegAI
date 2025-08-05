@@ -14,10 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { PlusCircle, Trash2, ArrowUp, ArrowDown } from "lucide-react";
-import { sopDepartments, sopStepStatuses } from "@/lib/mockData";
+import { PlusCircle, Trash2 } from "lucide-react";
+import { sopDepartments, mockSops } from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const sopStepSchema = z.object({
@@ -52,7 +52,11 @@ export default function CreateSopPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sopIdToEdit = searchParams.get('id');
+  
   const [dateCreated, setDateCreated] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const form = useForm<SopFormValues>({
     resolver: zodResolver(sopFormSchema),
@@ -70,25 +74,39 @@ export default function CreateSopPage() {
   const steps = form.watch("steps");
 
   useEffect(() => {
-    const newSopId = `SOP-${Date.now().toString().slice(-6)}`;
-    form.setValue('sopId', newSopId);
-    setDateCreated(new Date().toLocaleDateString('en-CA'));
-    if (user) {
-      form.setValue('responsiblePerson', user.name);
+    if (sopIdToEdit) {
+      const sopToEdit = mockSops.find(sop => sop.id === sopIdToEdit);
+      if (sopToEdit) {
+        setIsEditMode(true);
+        form.reset({
+          sopId: sopToEdit.id,
+          title: sopToEdit.title,
+          description: sopToEdit.description,
+          department: sopToEdit.department,
+          cluster: sopToEdit.cluster,
+          group: sopToEdit.group,
+          section: sopToEdit.section,
+          responsiblePerson: sopToEdit.responsiblePerson,
+          sla: sopToEdit.sla,
+          steps: sopToEdit.steps.map(s => ({...s, nextStepYes: s.nextStepYes?.toString(), nextStepNo: s.nextStepNo?.toString()})),
+        });
+        setDateCreated(new Date(sopToEdit.createdAt).toLocaleDateString('en-CA'));
+      }
+    } else {
+        const newSopId = `SOP-${Date.now().toString().slice(-6)}`;
+        form.setValue('sopId', newSopId);
+        setDateCreated(new Date().toLocaleDateString('en-CA'));
+        if (user) {
+          form.setValue('responsiblePerson', user.name);
+        }
     }
-  }, [user, form.setValue]);
+  }, [sopIdToEdit, user, form]);
 
 
-  const { fields, append, remove, swap } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "steps",
   });
-
-  const handleSwap = (index1: number, index2: number) => {
-    swap(index1, index2);
-    form.setValue(`steps.${index1}.stepOrder`, index2 + 1, { shouldDirty: true });
-    form.setValue(`steps.${index2}.stepOrder`, index1 + 1, { shouldDirty: true });
-  }
 
   const handleAppend = () => {
     append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', nextStepYes: '', nextStepNo: '' });
@@ -96,7 +114,6 @@ export default function CreateSopPage() {
 
   const handleRemove = (index: number) => {
     remove(index);
-    // After removing, we need to update the stepOrder for all subsequent steps
     const currentSteps = form.getValues('steps');
     currentSteps.forEach((step, i) => {
         if (i >= index) {
@@ -108,8 +125,8 @@ export default function CreateSopPage() {
   function onSubmit(data: SopFormValues) {
     console.log(data);
     toast({
-      title: "SOP Created Successfully!",
-      description: `The SOP "${data.title}" has been saved as a draft.`,
+      title: isEditMode ? "SOP Updated Successfully!" : "SOP Created Successfully!",
+      description: `The SOP "${data.title}" has been saved.`,
       className: "bg-green-100 dark:bg-green-900 border-green-400 dark:border-green-600",
     });
     router.push("/sops");
@@ -118,8 +135,10 @@ export default function CreateSopPage() {
   return (
     <MainLayout>
       <div className="space-y-4 mb-8">
-        <h1 className="text-4xl font-bold text-primary">Create New SOP</h1>
-        <p className="text-lg text-muted-foreground">Fill out the form below to create a new Standard Operating Procedure.</p>
+        <h1 className="text-4xl font-bold text-primary">{isEditMode ? 'Edit SOP' : 'Create New SOP'}</h1>
+        <p className="text-lg text-muted-foreground">
+            {isEditMode ? 'Update the details for this Standard Operating Procedure.' : 'Fill out the form below to create a new Standard Operating Procedure.'}
+        </p>
       </div>
 
       <Form {...form}>
@@ -148,7 +167,7 @@ export default function CreateSopPage() {
                 <FormField control={form.control} name="department" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Department</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select a department" /></SelectTrigger></FormControl>
                       <SelectContent>
                         {sopDepartments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
@@ -241,7 +260,7 @@ export default function CreateSopPage() {
                    <FormField control={form.control} name={`steps.${index}.stepType`} render={({ field }) => (
                       <FormItem>
                         <FormLabel>Step Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select step type" />
@@ -295,7 +314,7 @@ export default function CreateSopPage() {
           </Card>
           
           <div className="flex justify-end">
-            <Button type="submit" size="lg">Create SOP</Button>
+            <Button type="submit" size="lg">{isEditMode ? 'Update SOP' : 'Create SOP'}</Button>
           </div>
         </form>
       </Form>
