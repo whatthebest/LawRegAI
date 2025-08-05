@@ -15,9 +15,9 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { PlusCircle, Trash2 } from "lucide-react";
-import { sopDepartments } from "@/lib/mockData";
+import { sopDepartments, mockSops } from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const sopStepSchema = z.object({
@@ -48,10 +48,12 @@ const sopFormSchema = z.object({
 
 type SopFormValues = z.infer<typeof sopFormSchema>;
 
-export default function CreateSopPage() {
+export default function EditSopPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const params = useParams();
+  const sopIdToEdit = params.id as string;
   
   const [dateCreated, setDateCreated] = useState('');
 
@@ -67,7 +69,7 @@ export default function CreateSopPage() {
     },
   });
   
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "steps",
   });
@@ -76,13 +78,33 @@ export default function CreateSopPage() {
   const steps = form.watch("steps");
 
   useEffect(() => {
-    const newSopId = `SOP-${Date.now().toString().slice(-6)}`;
-    form.setValue('sopId', newSopId);
-    setDateCreated(new Date().toLocaleDateString('en-CA'));
-    if (user) {
-      form.setValue('responsiblePerson', user.name);
+    if (sopIdToEdit) {
+      const sopToEdit = mockSops.find(sop => sop.id === sopIdToEdit);
+      if (sopToEdit) {
+        form.reset({
+          sopId: sopToEdit.id,
+          title: sopToEdit.title,
+          description: sopToEdit.description,
+          department: sopToEdit.department,
+          cluster: sopToEdit.cluster,
+          group: sopToEdit.group,
+          section: sopToEdit.section,
+          responsiblePerson: sopToEdit.responsiblePerson,
+          sla: sopToEdit.sla,
+          // Steps are handled by `replace` below
+        });
+        
+        const formattedSteps = sopToEdit.steps.map(s => ({
+          ...s,
+          nextStepYes: s.nextStepYes !== undefined ? String(s.nextStepYes) : undefined,
+          nextStepNo: s.nextStepNo !== undefined ? String(s.nextStepNo) : undefined,
+        }));
+        replace(formattedSteps);
+
+        setDateCreated(new Date(sopToEdit.createdAt).toLocaleDateString('en-CA'));
+      }
     }
-  }, [user, form]);
+  }, [sopIdToEdit, form, replace]);
 
   const handleAppend = () => {
     append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', nextStepYes: '', nextStepNo: '' });
@@ -101,7 +123,7 @@ export default function CreateSopPage() {
   function onSubmit(data: SopFormValues) {
     console.log(data);
     toast({
-      title: "SOP Created Successfully!",
+      title: "SOP Updated Successfully!",
       description: `The SOP "${data.title}" has been saved.`,
       className: "bg-green-100 dark:bg-green-900 border-green-400 dark:border-green-600",
     });
@@ -111,9 +133,9 @@ export default function CreateSopPage() {
   return (
     <MainLayout>
       <div className="space-y-4 mb-8">
-        <h1 className="text-4xl font-bold text-primary">Create New SOP</h1>
+        <h1 className="text-4xl font-bold text-primary">Edit SOP</h1>
         <p className="text-lg text-muted-foreground">
-            Fill out the form below to create a new Standard Operating Procedure.
+            Update the details for this Standard Operating Procedure.
         </p>
       </div>
 
@@ -290,7 +312,7 @@ export default function CreateSopPage() {
           </Card>
           
           <div className="flex justify-end">
-            <Button type="submit" size="lg">Create SOP</Button>
+            <Button type="submit" size="lg">Update SOP</Button>
           </div>
         </form>
       </Form>
