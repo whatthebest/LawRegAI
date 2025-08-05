@@ -94,79 +94,81 @@ export default function CreateSopPage() {
               <CardTitle>SOP Details</CardTitle>
               <CardDescription>Provide the main information for the SOP.</CardDescription>
             </CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-6">
-              <FormField control={form.control} name="title" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SOP Title</FormLabel>
-                  <FormControl><Input placeholder="e.g., New Employee Onboarding" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="department" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Department</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Select a department" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {sopDepartments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="cluster" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cluster (กลุ่ม)</FormLabel>
-                  <FormControl><Input placeholder="Enter cluster" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-               <FormField control={form.control} name="group" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Group (กลุ่ม)</FormLabel>
-                  <FormControl><Input placeholder="Enter group" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-               <FormField control={form.control} name="section" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Section (ส่วนงาน)</FormLabel>
-                  <FormControl><Input placeholder="Enter section" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+            <CardContent className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <FormField control={form.control} name="title" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SOP Title</FormLabel>
+                    <FormControl><Input placeholder="e.g., New Employee Onboarding" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="department" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Department</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select a department" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {sopDepartments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="cluster" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cluster (กลุ่ม)</FormLabel>
+                    <FormControl><Input placeholder="Enter cluster" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="group" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Group (กลุ่ม)</FormLabel>
+                    <FormControl><Input placeholder="Enter group" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="section" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Section (ส่วนงาน)</FormLabel>
+                    <FormControl><Input placeholder="Enter section" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <FormItem>
+                    <FormLabel>Date Created</FormLabel>
+                    <FormControl><Input value={dateCreated} disabled /></FormControl>
+                  </FormItem>
+                  <FormField control={form.control} name="responsiblePerson" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Responsible Person (ผู้รับผิดชอบ)</FormLabel>
+                      <FormControl><Input {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="sla" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Standard Time (มาตราฐานเวลา)</FormLabel>
+                      <FormControl><Input type="number" min="1" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
               <FormField control={form.control} name="description" render={({ field }) => (
-                <FormItem className="md:col-span-2">
+                <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl><Textarea placeholder="Describe the purpose and scope of this SOP..." {...field} rows={4} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
-               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:col-span-2">
-                 <FormItem>
-                  <FormLabel>Date Created</FormLabel>
-                  <FormControl><Input value={dateCreated} disabled /></FormControl>
-                </FormItem>
-                <FormField control={form.control} name="responsiblePerson" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Responsible Person (ผู้รับผิดชอบ)</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                 <FormField control={form.control} name="sla" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Standard Time (มาตราฐานเวลา)</FormLabel>
-                    <FormControl><Input type="number" min="1" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-               </div>
-                <FormItem className="md:col-span-2">
-                  <FormLabel>File Attachment (Optional)</FormLabel>
-                  <FormControl><Input type="file" /></FormControl>
-                  <FormDescription>Upload any relevant documents, templates, or diagrams.</FormDescription>
-                </FormItem>
+              <FormItem>
+                <FormLabel>File Attachment (Optional)</FormLabel>
+                <FormControl><Input type="file" /></FormControl>
+                <FormDescription>Upload any relevant documents, templates, or diagrams.</FormDescription>
+              </FormItem>
             </CardContent>
           </Card>
 
