@@ -42,7 +42,6 @@ export function SopTimeline({ steps }: { steps: SOPStep[] }) {
                             <CardTitle className="font-bold text-xl">{step.title}</CardTitle>
                             <CardDescription>Step {step.stepOrder}</CardDescription>
                         </div>
-                        <Badge variant={getStatusVariant(step.status)}>{step.status}</Badge>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
