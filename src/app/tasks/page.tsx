@@ -34,9 +34,9 @@ interface Task extends SOPStep {
 
 // Mock project data for the new tab
 const mockProjects = [
-    { name: "Q3 Marketing Campaign", description: "Launch campaign for the new product line.", status: "In Progress", sop: "sop-004" },
-    { name: "Website Redesign", description: "Complete overhaul of the corporate website.", status: "Planning", sop: "sop-002" },
-    { name: "New Hire Batch Onboarding", description: "Onboard the new batch of engineers.", status: "Completed", sop: "sop-001" },
+    { id: "q3-marketing-campaign", name: "Q3 Marketing Campaign", description: "Launch campaign for the new product line.", status: "In Progress", sop: "sop-004" },
+    { id: "website-redesign", name: "Website Redesign", description: "Complete overhaul of the corporate website.", status: "Planning", sop: "sop-002" },
+    { id: "new-hire-batch-onboarding", name: "New Hire Batch Onboarding", description: "Onboard the new batch of engineers.", status: "Completed", sop: "sop-001" },
 ];
 
 export default function TasksPage() {
@@ -172,7 +172,9 @@ export default function TasksPage() {
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm text-muted-foreground">{project.description}</p>
-                                <Button variant="link" className="px-0 pt-4">View Project Details &rarr;</Button>
+                                <Link href={`/projects/${project.id}`} passHref>
+                                  <Button variant="link" className="px-0 pt-4">View Project Details &rarr;</Button>
+                                </Link>
                             </CardContent>
                         </Card>
                     ))}
