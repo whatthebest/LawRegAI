@@ -1,5 +1,6 @@
 import { SOP, SOPDepartment, SOPStatus, SOPStepStatus } from './types';
 
+// mock data
 export const mockSops: SOP[] = [
   {
     id: 'sop-001',
