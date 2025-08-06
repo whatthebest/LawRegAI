@@ -12,7 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { mockSops } from '@/lib/mockData';
-import { Edit, Plus, Trash2 } from 'lucide-react';
+import { Edit, Plus, Trash2, User, Clock, Shield } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose } from '@/components/ui/dialog';
+import { useForm } from 'react-hook-form';
+import { Textarea } from '@/components/ui/textarea';
 
 const mockProjects = [
     { id: "q3-marketing-campaign", name: "Q3 Marketing Campaign", description: "Launch campaign for the new product line.", status: "In Progress", sop: "sop-004" },
@@ -22,9 +25,15 @@ const mockProjects = [
 
 interface Task {
   id: string;
-  text: string;
+  name: string;
+  detail: string;
+  sla: number;
+  owner: string;
+  manager: string;
   completed: boolean;
 }
+
+type TaskFormValues = Omit<Task, 'id' | 'completed'>;
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -34,17 +43,18 @@ export default function ProjectDetailPage() {
   const sop = mockSops.find(s => s.id === project?.sop);
 
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [newTask, setNewTask] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<TaskFormValues>();
 
   if (!project || !sop) {
     notFound();
   }
 
-  const handleAddTask = () => {
-    if (newTask.trim() !== '') {
-      setTasks([...tasks, { id: `task-${Date.now()}`, text: newTask, completed: false }]);
-      setNewTask('');
-    }
+  const handleAddTask = (data: TaskFormValues) => {
+    setTasks([...tasks, { ...data, id: `task-${Date.now()}`, completed: false }]);
+    reset();
+    setIsDialogOpen(false);
   };
   
   const toggleTask = (taskId: string) => {
@@ -78,38 +88,90 @@ export default function ProjectDetailPage() {
         <div className="md:col-span-2 space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle>Project To-Do List</CardTitle>
-              <CardDescription>Track tasks specific to this project.</CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                    <CardTitle>Project To-Do List</CardTitle>
+                    <CardDescription>Track tasks specific to this project.</CardDescription>
+                </div>
+                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button className="gap-2">
+                            <Plus className="w-4 h-4" /> Add Task
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Add a new task</DialogTitle>
+                            <DialogDescription>Fill in the details for the new project task.</DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleSubmit(handleAddTask)} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="name">Task Name</Label>
+                                <Input id="name" {...register("name", { required: "Task name is required." })} />
+                                {errors.name && <p className="text-destructive text-sm">{errors.name.message}</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="detail">Detail</Label>
+                                <Textarea id="detail" {...register("detail", { required: "Detail is required." })} />
+                                {errors.detail && <p className="text-destructive text-sm">{errors.detail.message}</p>}
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="sla">SLA (days)</Label>
+                                    <Input id="sla" type="number" {...register("sla", { required: "SLA is required.", valueAsNumber: true })} />
+                                    {errors.sla && <p className="text-destructive text-sm">{errors.sla.message}</p>}
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="owner">Owner</Label>
+                                    <Input id="owner" {...register("owner", { required: "Owner is required." })} />
+                                    {errors.owner && <p className="text-destructive text-sm">{errors.owner.message}</p>}
+                                </div>
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="manager">Manager</Label>
+                                <Input id="manager" {...register("manager", { required: "Manager is required." })} />
+                                {errors.manager && <p className="text-destructive text-sm">{errors.manager.message}</p>}
+                            </div>
+                            <div className="flex justify-end gap-2 pt-4">
+                               <DialogClose asChild>
+                                    <Button type="button" variant="ghost">Cancel</Button>
+                                </DialogClose>
+                                <Button type="submit">Add Task</Button>
+                            </div>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                    <Input 
-                        placeholder="Add a new task..."
-                        value={newTask}
-                        onChange={(e) => setNewTask(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
-                    />
-                    <Button onClick={handleAddTask} className="gap-2">
-                        <Plus className="w-4 h-4" /> Add Task
-                    </Button>
-                </div>
-                <div className="space-y-2">
+                <div className="space-y-4">
                     {tasks.length > 0 ? tasks.map(task => (
-                        <div key={task.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
-                            <Checkbox 
-                                id={`task-${task.id}`} 
-                                checked={task.completed} 
-                                onCheckedChange={() => toggleTask(task.id)}
-                            />
-                            <Label htmlFor={`task-${task.id}`} className={`flex-1 ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                                {task.text}
-                            </Label>
-                            <Button variant="ghost" size="icon" className="w-6 h-6" onClick={() => removeTask(task.id)}>
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
-                        </div>
+                        <Card key={task.id} className={`p-4 ${task.completed ? 'bg-muted/50' : ''}`}>
+                            <div className="flex items-start gap-4">
+                                <Checkbox 
+                                    id={`task-${task.id}`} 
+                                    checked={task.completed} 
+                                    onCheckedChange={() => toggleTask(task.id)}
+                                    className="mt-1"
+                                />
+                                <div className="flex-1 space-y-2">
+                                    <Label htmlFor={`task-${task.id}`} className={`text-lg font-semibold ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                        {task.name}
+                                    </Label>
+                                    <p className={`text-sm text-muted-foreground ${task.completed ? 'line-through' : ''}`}>{task.detail}</p>
+                                    <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs pt-2">
+                                        <div className="flex items-center gap-1.5"><Clock className="w-3 h-3"/> SLA: {task.sla} days</div>
+                                        <div className="flex items-center gap-1.5"><User className="w-3 h-3"/> Owner: {task.owner}</div>
+                                        <div className="flex items-center gap-1.5"><Shield className="w-3 h-3"/> Manager: {task.manager}</div>
+                                    </div>
+                                </div>
+                                <Button variant="ghost" size="icon" className="w-8 h-8 shrink-0" onClick={() => removeTask(task.id)}>
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                            </div>
+                        </Card>
                     )) : (
-                        <p className="text-sm text-muted-foreground text-center py-4">No tasks added yet.</p>
+                        <p className="text-sm text-muted-foreground text-center py-8">No tasks added yet. Click "Add Task" to get started.</p>
                     )}
                 </div>
             </CardContent>
