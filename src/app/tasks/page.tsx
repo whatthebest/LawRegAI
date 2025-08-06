@@ -1,16 +1,30 @@
 
 "use client";
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import MainLayout from '@/components/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { mockSops } from '@/lib/mockData';
-import { SOPStep } from '@/lib/types';
-import { Check, Clock } from 'lucide-react';
+import { SOP, SOPStep } from '@/lib/types';
+import { Check, Clock, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SopTimeline } from '@/components/SopTimeline';
+import { Separator } from '@/components/ui/separator';
 
 interface Task extends SOPStep {
   sopTitle: string;
@@ -19,6 +33,8 @@ interface Task extends SOPStep {
 
 export default function TasksPage() {
   const { user } = useAuth();
+  const [isCreateWorkOpen, setCreateWorkOpen] = useState(false);
+  const [selectedSop, setSelectedSop] = useState<SOP | null>(null);
 
   const tasks = useMemo(() => {
     if (!user) return [];
@@ -33,23 +49,16 @@ export default function TasksPage() {
     });
     return allTasks;
   }, [user]);
-  
-  const getTasksForUserRole = (role: 'owner' | 'reviewer' | 'approver', status: SOPStep['status']) => {
-    return tasks.filter(task => {
-        if(role === 'reviewer' && task.reviewer === user?.email && task.status === 'Review') {
-            return true;
-        }
-        if(role === 'approver' && task.approver === user?.email && task.status === 'Draft') {
-            return true;
-        }
-        return false;
-    });
-  }
 
   const toReviewTasks = tasks.filter(task => task.reviewer === user?.email && task.status === 'Review');
   const toApproveTasks = tasks.filter(task => task.approver === user?.email && task.status === 'Review');
   const completedTasks = tasks.filter(task => (task.owner === user?.email || task.reviewer === user?.email || task.approver === user?.email) && task.status === 'Approved');
-  
+
+  const handleSopSelect = (sopId: string) => {
+    const sop = mockSops.find(s => s.id === sopId);
+    setSelectedSop(sop || null);
+  };
+
   const TaskList = ({ tasks, emptyMessage }: { tasks: Task[], emptyMessage: string }) => {
     if (tasks.length === 0) {
         return <p className="text-muted-foreground text-center py-8">{emptyMessage}</p>
@@ -76,9 +85,61 @@ export default function TasksPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-2 mb-8">
-        <h1 className="text-4xl font-bold text-primary">Work Tracker</h1>
-        <p className="text-lg text-muted-foreground">Here are all the SOP steps assigned to you for action.</p>
+      <div className="flex justify-between items-start gap-4 mb-8 flex-wrap">
+        <div className="space-y-2">
+            <h1 className="text-4xl font-bold text-primary">Work Tracker</h1>
+            <p className="text-lg text-muted-foreground">Here are all the SOP steps assigned to you for action.</p>
+        </div>
+        <Dialog open={isCreateWorkOpen} onOpenChange={setCreateWorkOpen}>
+          <DialogTrigger asChild>
+            <Button className='gap-2'><PlusCircle className='w-4 h-4'/> Create Work</Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Create New Work Item</DialogTitle>
+              <DialogDescription>
+                Define a new work item and link it to an existing SOP for guidance.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="work-name" className="text-right">Work Name</Label>
+                <Input id="work-name" placeholder="e.g., Q3 Marketing Campaign" className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="work-detail" className="text-right">Work Detail</Label>
+                <Textarea id="work-detail" placeholder="Describe the goals and context of this work." className="col-span-3" />
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="sop-select" className="text-right">Relevant SOP</Label>
+                 <Select onValueChange={handleSopSelect}>
+                    <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select a relevant SOP" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {mockSops.map(sop => (
+                            <SelectItem key={sop.id} value={sop.id}>
+                                {sop.title} ({sop.id})
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {selectedSop && (
+                <div className="space-y-4">
+                    <Separator/>
+                    <h4 className="font-semibold text-lg">SOP Guideline: {selectedSop.title}</h4>
+                    <div className="max-h-[300px] overflow-y-auto p-1 pr-4">
+                        <SopTimeline steps={selectedSop.steps} />
+                    </div>
+                </div>
+            )}
+            <div className="flex justify-end pt-4">
+                <Button onClick={() => setCreateWorkOpen(false)}>Save Work Item</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Tabs defaultValue="review" className="w-full">
@@ -93,40 +154,8 @@ export default function TasksPage() {
             <Check className='w-4 h-4 text-accent' /> Completed ({completedTasks.length})
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="review">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Tasks Pending Your Review</CardTitle>
-                    <CardDescription>These items require your review before they can proceed.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <TaskList tasks={toReviewTasks} emptyMessage="No tasks are currently waiting for your review." />
-                </CardContent>
-            </Card>
-        </TabsContent>
-        <TabsContent value="approve">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Tasks Pending Your Approval</CardTitle>
-                    <CardDescription>These items are awaiting your final approval.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <TaskList tasks={toApproveTasks} emptyMessage="You have no tasks to approve." />
-                </CardContent>
-            </Card>
-        </TabsContent>
-        <TabsContent value="completed">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Completed Tasks</CardTitle>
-                    <CardDescription>These are your recently completed tasks where you were the owner, reviewer, or approver.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <TaskList tasks={completedTasks} emptyMessage="You have not completed any tasks yet." />
-                </CardContent>
-            </Card>
-        </TabsContent>
-      </Tabs>
+       </Tabs>
     </MainLayout>
-  );
+  )
 }
+    
