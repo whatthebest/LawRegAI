@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -26,11 +27,11 @@ const navItems = [
     description: "View steps and procedures assigned to you.",
   },
   {
-    href: "#",
-    icon: <UserCog className="w-8 h-8 text-muted-foreground" />,
+    href: "/admin",
+    icon: <UserCog className="w-8 h-8 text-primary" />,
     title: "Admin",
-    description: "Manage users and system settings (disabled).",
-    disabled: true,
+    description: "Manage users and system settings.",
+    disabled: false,
   },
 ];
 
