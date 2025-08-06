@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserCog } from "lucide-react";
+import Link from "next/link";
 
 const users = [
     { name: "Jane Doe", email: "jane@company.com", department: "Operations", role: "Admin" },
@@ -50,7 +51,9 @@ export default function AdminPage() {
                             <TableCell>{user.department}</TableCell>
                             <TableCell>{user.role}</TableCell>
                             <TableCell className="text-right">
-                                <Button variant="outline" size="sm">Edit</Button>
+                                <Link href={`/admin/edit-user?email=${encodeURIComponent(user.email)}`}>
+                                    <Button variant="outline" size="sm">Edit</Button>
+                                </Link>
                             </TableCell>
                          </TableRow>
                     ))}
