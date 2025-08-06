@@ -73,7 +73,7 @@ export default function SopsListPage() {
             <List className="w-4 h-4" /> List of SOPs
           </TabsTrigger>
           <TabsTrigger value="manager" className="gap-2">
-            <UserCheck className="w-4 h-4" /> Manager SOPs
+            <UserCheck className="w-4 h-4" /> Manager Review
           </TabsTrigger>
         </TabsList>
         <TabsContent value="list">
