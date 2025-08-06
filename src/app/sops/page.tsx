@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Search, FilePlus2, Check, X } from 'lucide-react';
+import { ArrowRight, Search, FilePlus2, Check, X, List, UserCheck } from 'lucide-react';
 import { mockSops, sopDepartments, sopStatuses } from '@/lib/mockData';
 import type { SOP, SOPDepartment, SOPStatus } from '@/lib/types';
 import { format } from 'date-fns';
@@ -69,8 +69,12 @@ export default function SopsListPage() {
 
       <Tabs defaultValue="list">
         <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="list">List of SOPs</TabsTrigger>
-          <TabsTrigger value="manager">Manager SOPs</TabsTrigger>
+          <TabsTrigger value="list" className="gap-2">
+            <List className="w-4 h-4" /> List of SOPs
+          </TabsTrigger>
+          <TabsTrigger value="manager" className="gap-2">
+            <UserCheck className="w-4 h-4" /> Manager SOPs
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="list">
             <Card>
