@@ -23,7 +23,7 @@ const navLinks = [
   { href: "/", label: "Dashboard", icon: LayoutGrid },
   { href: "/create-sop", label: "Create SOP", icon: FilePlus2 },
   { href: "/sops", label: "View SOPs", icon: ListChecks },
-  { href: "/tasks", label: "My Tasks", icon: CheckSquare },
+  { href: "/tasks", label: "Work Tracker", icon: CheckSquare },
   { href: "/admin", label: "Admin", icon: UserCog },
 ];
 

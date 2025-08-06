@@ -23,7 +23,7 @@ const navItems = [
   {
     href: "/tasks",
     icon: <CheckSquare className="w-8 h-8 text-primary" />,
-    title: "My Tasks",
+    title: "Work Tracker",
     description: "View steps and procedures assigned to you.",
   },
   {
