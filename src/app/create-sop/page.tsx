@@ -15,7 +15,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { PlusCircle, Trash2 } from "lucide-react";
-import { sopDepartments } from "@/lib/mockData";
+import { sopDepartments, mockSops } from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -76,7 +76,11 @@ export default function CreateSopPage() {
   const steps = form.watch("steps");
 
   useEffect(() => {
-    const newSopId = `SOP-${Date.now().toString().slice(-6)}`;
+    const existingIds = mockSops.map(sop => parseInt(sop.id.split('-')[1], 10));
+    const maxId = Math.max(0, ...existingIds);
+    const newIdNumber = maxId + 1;
+    const newSopId = `sop-${newIdNumber.toString().padStart(3, '0')}`;
+
     form.setValue('sopId', newSopId);
     setDateCreated(new Date().toLocaleDateString('en-CA'));
     if (user) {
