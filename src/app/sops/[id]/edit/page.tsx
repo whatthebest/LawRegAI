@@ -34,6 +34,7 @@ const sopStepSchema = z.object({
   reviewer: z.string().email("Reviewer must be a valid email."),
   approver: z.string().email("Approver must be a valid email."),
   status: z.enum(['Draft', 'Review', 'Approved']),
+  attachment: z.any().optional(),
 });
 
 const sopFormSchema = z.object({
@@ -305,6 +306,13 @@ export default function EditSopPage() {
                       )} />
                     </div>
                   </div>
+                  <FormField control={form.control} name={`steps.${index}.attachment`} render={({ field }) => (
+                     <FormItem>
+                        <FormLabel>File Attachment (Optional)</FormLabel>
+                        <FormControl><Input type="file" /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                  )} />
                 </div>
               ))}
               <Button type="button" variant="outline" onClick={handleAppend} className="gap-2">
