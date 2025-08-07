@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { VariantProps } from 'class-variance-authority';
 import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -50,18 +50,36 @@ const getStatusBadgeVariant = (status: TaskStatus): VariantProps<typeof badgeVar
     }
 };
 
+interface ProjectFormValues {
+    name: string;
+    description: string;
+    sop: string;
+}
+
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
   
-  const project = mockProjects.find(p => p.id === projectId);
-  const sop = mockSops.find(s => s.id === project?.sop);
+  const [project, setProject] = useState(() => mockProjects.find(p => p.id === projectId));
+  const [sop, setSop] = useState(() => mockSops.find(s => s.id === project?.sop));
 
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm<TaskFormValues>();
+  const { register: registerProject, handleSubmit: handleSubmitProject, reset: resetProject } = useForm<ProjectFormValues>();
+
+  useEffect(() => {
+    if (project) {
+        resetProject({
+            name: project.name,
+            description: project.description,
+            sop: project.sop,
+        });
+    }
+  }, [project, resetProject]);
 
   if (!project || !sop) {
     notFound();
@@ -70,7 +88,7 @@ export default function ProjectDetailPage() {
   const handleAddTask = (data: TaskFormValues) => {
     setTasks([...tasks, { ...data, id: `task-${Date.now()}`, status: 'Not Started' }]);
     reset();
-    setIsDialogOpen(false);
+    setIsAddTaskOpen(false);
   };
   
   const removeTask = (taskId: string) => {
@@ -79,6 +97,16 @@ export default function ProjectDetailPage() {
 
   const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
     setTasks(tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+  };
+  
+  const handleEditProject = (data: ProjectFormValues) => {
+    // In a real app, you would send this to your backend/API
+    console.log("Updated project data:", data);
+    const updatedProject = { ...project, ...data };
+    const updatedSop = mockSops.find(s => s.id === data.sop);
+    setProject(updatedProject);
+    if(updatedSop) setSop(updatedSop);
+    setIsEditProjectOpen(false);
   };
 
 
@@ -94,10 +122,47 @@ export default function ProjectDetailPage() {
           </div>
           <p className="text-lg text-muted-foreground">{project.description}</p>
         </div>
-        <Button variant="outline" className="gap-2">
-            <Edit className="w-4 h-4" />
-            Edit Project
-        </Button>
+        <Dialog open={isEditProjectOpen} onOpenChange={setIsEditProjectOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="gap-2">
+                <Edit className="w-4 h-4" />
+                Edit Project
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Project</DialogTitle>
+              <DialogDescription>Update the project details and linked SOP.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmitProject(handleEditProject)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="projectName">Project Name</Label>
+                <Input id="projectName" {...registerProject("name", { required: "Project name is required" })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="projectDescription">Project Description</Label>
+                <Textarea id="projectDescription" {...registerProject("description", { required: "Description is required" })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="projectSop">Relevant SOP</Label>
+                <Select {...registerProject("sop")} onValueChange={(value) => resetProject({...project, sop: value})} defaultValue={project.sop}>
+                  <SelectTrigger id="projectSop">
+                    <SelectValue placeholder="Select an SOP" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockSops.map(s => <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <DialogClose asChild>
+                  <Button type="button" variant="ghost">Cancel</Button>
+                </DialogClose>
+                <Button type="submit">Save Changes</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid md:grid-cols-3 gap-8">
@@ -109,7 +174,7 @@ export default function ProjectDetailPage() {
                     <CardTitle>Project To-Do List</CardTitle>
                     <CardDescription>Track tasks specific to this project.</CardDescription>
                 </div>
-                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                 <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
                     <DialogTrigger asChild>
                         <Button className="gap-2">
                             <Plus className="w-4 h-4" /> Add Task
