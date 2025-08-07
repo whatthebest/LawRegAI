@@ -105,7 +105,7 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                         <Separator className="my-4" />
                         <div className="flex flex-col gap-2">
                            <Link href={`/sops/${sop.id}/edit`} passHref>
-                             <Button variant="secondary" className='gap-2 w-full'><Edit className='w-4 h-4' /> Edit SOP</Button>
+                             <Button variant="outline" className='gap-2 w-full'><Edit className='w-4 h-4' /> Edit SOP</Button>
                            </Link>
                            <Button variant="outline" className='gap-2 w-full'><FileDown className='w-4 h-4' /> Export as PDF</Button>
                            <Button variant="outline" className='gap-2 w-full'><Share2 className='w-4 h-4' /> Share</Button>
