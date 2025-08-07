@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { mockSops } from '@/lib/mockData';
 import { Edit, Plus, Trash2, User, Clock, Shield } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose } from '@/components/ui/dialog';
@@ -34,11 +33,10 @@ interface Task {
   sla: number;
   owner: string;
   manager: string;
-  completed: boolean;
   status: TaskStatus;
 }
 
-type TaskFormValues = Omit<Task, 'id' | 'completed' | 'status'>;
+type TaskFormValues = Omit<Task, 'id' | 'status'>;
 
 const getStatusBadgeVariant = (status: TaskStatus) => {
     switch (status) {
@@ -68,13 +66,9 @@ export default function ProjectDetailPage() {
   }
 
   const handleAddTask = (data: TaskFormValues) => {
-    setTasks([...tasks, { ...data, id: `task-${Date.now()}`, completed: false, status: 'Not Started' }]);
+    setTasks([...tasks, { ...data, id: `task-${Date.now()}`, status: 'Not Started' }]);
     reset();
     setIsDialogOpen(false);
-  };
-  
-  const toggleTask = (taskId: string) => {
-    setTasks(tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
   };
   
   const removeTask = (taskId: string) => {
@@ -166,17 +160,11 @@ export default function ProjectDetailPage() {
             <CardContent className="space-y-4">
                 <div className="space-y-4">
                     {tasks.length > 0 ? tasks.map(task => (
-                        <Card key={task.id} className={`p-4 ${task.completed ? 'bg-muted/50' : ''}`}>
+                        <Card key={task.id} className="p-4">
                             <div className="flex items-start gap-4">
-                                <Checkbox 
-                                    id={`task-${task.id}`} 
-                                    checked={task.completed} 
-                                    onCheckedChange={() => toggleTask(task.id)}
-                                    className="mt-1"
-                                />
                                 <div className="flex-1 space-y-2">
                                     <div className="flex justify-between items-center">
-                                        <Label htmlFor={`task-${task.id}`} className={`text-lg font-semibold ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                        <Label htmlFor={`task-${task.id}`} className="text-lg font-semibold">
                                             {task.name}
                                         </Label>
                                         <div className="flex items-center gap-2">
@@ -193,7 +181,7 @@ export default function ProjectDetailPage() {
                                             <Badge variant={getStatusBadgeVariant(task.status)}>{task.status}</Badge>
                                         </div>
                                     </div>
-                                    <p className={`text-sm text-muted-foreground ${task.completed ? 'line-through' : ''}`}>{task.detail}</p>
+                                    <p className="text-sm text-muted-foreground">{task.detail}</p>
                                     <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs pt-2">
                                         <div className="flex items-center gap-1.5"><Clock className="w-3 h-3"/> SLA: {task.sla} days</div>
                                         <div className="flex items-center gap-1.5"><User className="w-3 h-3"/> Owner: {task.owner}</div>
