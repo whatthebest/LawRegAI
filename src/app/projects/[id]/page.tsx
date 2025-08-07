@@ -16,12 +16,16 @@ import { Edit, Plus, Trash2, User, Clock, Shield } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 const mockProjects = [
     { id: "q3-marketing-campaign", name: "Q3 Marketing Campaign", description: "Launch campaign for the new product line.", status: "In Progress", sop: "sop-004" },
     { id: "website-redesign", name: "Website Redesign", description: "Complete overhaul of the corporate website.", status: "Planning", sop: "sop-002" },
     { id: "new-hire-batch-onboarding", name: "New Hire Batch Onboarding", description: "Onboard the new batch of engineers.", status: "Completed", sop: "sop-001" },
 ];
+
+type TaskStatus = "Not Started" | "In Progress" | "Ready for Review";
 
 interface Task {
   id: string;
@@ -31,9 +35,21 @@ interface Task {
   owner: string;
   manager: string;
   completed: boolean;
+  status: TaskStatus;
 }
 
-type TaskFormValues = Omit<Task, 'id' | 'completed'>;
+type TaskFormValues = Omit<Task, 'id' | 'completed' | 'status'>;
+
+const getStatusBadgeVariant = (status: TaskStatus) => {
+    switch (status) {
+        case 'In Progress': return 'secondary';
+        case 'Ready for Review': return 'default';
+        case 'Not Started':
+        default:
+            return 'outline';
+    }
+};
+
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -52,7 +68,7 @@ export default function ProjectDetailPage() {
   }
 
   const handleAddTask = (data: TaskFormValues) => {
-    setTasks([...tasks, { ...data, id: `task-${Date.now()}`, completed: false }]);
+    setTasks([...tasks, { ...data, id: `task-${Date.now()}`, completed: false, status: 'Not Started' }]);
     reset();
     setIsDialogOpen(false);
   };
@@ -63,6 +79,10 @@ export default function ProjectDetailPage() {
   
   const removeTask = (taskId: string) => {
     setTasks(tasks.filter(t => t.id !== taskId));
+  };
+
+  const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
+    setTasks(tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
   };
 
 
@@ -155,9 +175,24 @@ export default function ProjectDetailPage() {
                                     className="mt-1"
                                 />
                                 <div className="flex-1 space-y-2">
-                                    <Label htmlFor={`task-${task.id}`} className={`text-lg font-semibold ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                                        {task.name}
-                                    </Label>
+                                    <div className="flex justify-between items-center">
+                                        <Label htmlFor={`task-${task.id}`} className={`text-lg font-semibold ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                            {task.name}
+                                        </Label>
+                                        <div className="flex items-center gap-2">
+                                             <Select value={task.status} onValueChange={(value: TaskStatus) => handleStatusChange(task.id, value)}>
+                                                <SelectTrigger className="w-[180px] h-8">
+                                                    <SelectValue placeholder="Set status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Not Started">Not Started</SelectItem>
+                                                    <SelectItem value="In Progress">In Progress</SelectItem>
+                                                    <SelectItem value="Ready for Review">Ready for Review</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <Badge variant={getStatusBadgeVariant(task.status)}>{task.status}</Badge>
+                                        </div>
+                                    </div>
                                     <p className={`text-sm text-muted-foreground ${task.completed ? 'line-through' : ''}`}>{task.detail}</p>
                                     <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs pt-2">
                                         <div className="flex items-center gap-1.5"><Clock className="w-3 h-3"/> SLA: {task.sla} days</div>

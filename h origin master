@@ -1,0 +1,334 @@
+[33mcommit 3de8a14ff2be63ba7791bc694993a0e6a5f62943[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m
+Merge: bf30455 09c54a9
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 09:37:07 2025 +0000
+
+    this version added work tracker
+
+[33mcommit bf304559c2372583d19951cb6b55a43f162a8e2d[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 09:11:33 2025 +0000
+
+    in work tracker page in path 'View Project Details' in Project To-Do Lis
+
+[33mcommit 2ea7ad2034ff1a814e8cbbb496585bd3e980931a[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 09:01:39 2025 +0000
+
+    in work tracker page in Project List in View Project Details when use cl
+
+[33mcommit d17c5d2bd1ad256256de422087a0ae6d9e892a65[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 08:41:57 2025 +0000
+
+    I see this error with the app, reported by NextJS, please fix it. The er
+
+[33mcommit dc434b284b7e5ef7f6d2d97a05b8c0c24a1e794d[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 08:41:04 2025 +0000
+
+    so in page Work tracker i want it 2 tab componant  , 1 it to show list o
+
+[33mcommit 914c1fb9ce8f5a51366845f09cb8d49719d48c67[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 07:23:45 2025 +0000
+
+    in work tracker page i want in this page user can add Work (work name ,w
+
+[33mcommit 9be00485f7aef7d4aaa2cefa9cf6b9d016ab6463[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 07:14:50 2025 +0000
+
+    in my task page can change name from Mytasks to work tracker
+
+[33mcommit d27331a55acb97be277094ee520636171df457e3[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 07:08:52 2025 +0000
+
+    in page SOPs in tap copoanme Manager SOPs can change name from Manager S
+
+[33mcommit 09c54a9e09daec92d1578070f48ddb7f44dfa20a[m
+Author: sashimild <sashimild@sashimild.local>
+Date:   Wed Aug 6 12:07:31 2025 +0700
+
+    test
+
+[33mcommit b87a79437b2c5b3a0b9d0ccc37e6313800173f33[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 04:53:33 2025 +0000
+
+    First version
+
+[33mcommit 96c44737136f37be6bc9956ecf4612e64d274220[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 04:26:20 2025 +0000
+
+    in admin page in admin panel in button edit i want Admin user can click
+
+[33mcommit 4f23e821e15e07348664aab40df98f1969a1fdc0[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 04:18:52 2025 +0000
+
+    in page create New SOP in SOP ID // i want to in SOP ID field wil runnin
+
+[33mcommit f02f2187085566de7e12826e7ec162ba73fcef1d[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 04:12:25 2025 +0000
+
+    pls decorate tab componant 'Lis of sops' , 'Manager SOPs'
+
+[33mcommit f78af7b60ba4a286b40f733b6a93635cae3fd724[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 04:09:45 2025 +0000
+
+    in view SOPs page i want to add  Tab Navigation above table and below  T
+
+[33mcommit cc7fbb39fe2ede4d474f2a5d267044b001e85ba9[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Wed Aug 6 03:51:27 2025 +0000
+
+    pls you can add page Admin page on side bar
+
+[33mcommit d305da120154b7c6839921821d372a1fb516dfd2[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 09:41:39 2025 +0000
+
+    I see this error with the app, reported by NextJS, please fix it. The er
+
+[33mcommit e9eab60a7ac90efb6663f31de85e0d7679a3d7b2[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 09:34:23 2025 +0000
+
+    I see this error with the app, reported by NextJS, please fix it. The er
+
+[33mcommit 07d04adf43e79d841a5ead6ac042448e9b560b4d[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 09:28:49 2025 +0000
+
+    pls remove it i dont want show it on this page
+
+[33mcommit 63ce90a5bcbcec035ebe9a70a133b524607f4070[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 09:14:54 2025 +0000
+
+    so when i click edit sop // i need it to run to path like this /sops/sop
+
+[33mcommit 5f2ccc6608b376cc11f856c98a25317e1ce72710[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 09:09:31 2025 +0000
+
+    it not show sop steps in innitail but after i click add new step it will
+
+[33mcommit 3084f5b6d315468e95297593e89779149cb695bf[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 09:03:41 2025 +0000
+
+    it still dont show
+
+[33mcommit 09ea4ffb59cb53b5bca27d4d4204f7c7b8b6a3ac[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 08:49:51 2025 +0000
+
+    this page nont found
+
+[33mcommit f01f5ca95a11602004d0885a65890809850e96ca[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 08:47:52 2025 +0000
+
+    when clcik Edit SOP it will run to this path /sops/sop-001/detail_sop-00
+
+[33mcommit 4f183d675afdfd606ef8774c689a897b099c3d35[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 08:41:45 2025 +0000
+
+    Make the following changes:
+    
+    ,
+    
+    Find this element:
+    
+      <button class="inl
+
+[33mcommit 264fb7e2e675ebdd2fb2517bab8c0c89794fec0c[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 08:25:28 2025 +0000
+
+    pls remove it i don want show it on SOP Timeline element
+
+[33mcommit 326098d6a8ff65f4a67cda095bf522b88a6ae1bf[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 08:23:34 2025 +0000
+
+    pls remove it  in the SOP Timeline
+
+[33mcommit d25df2bc88791939cf7fbcddbe6564800cc22063[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 08:21:47 2025 +0000
+
+    pls remove this i dont want show this in SOP Timeline element
+
+[33mcommit 81d8698baa8f77e2d374e367859dd0ddf1f5ea9d[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 08:19:14 2025 +0000
+
+    is dissorted can u fix it?
+
+[33mcommit c4071483057ed66e9df621f38e8d8548c73e8d35[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 08:17:21 2025 +0000
+
+    go back to earlier version
+
+[33mcommit 54d1a5cfd210528ab08a16e1a5d7c0bd684346db[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 08:15:13 2025 +0000
+
+    Make the following changes:
+    
+    ,
+    
+    Find this element:
+    
+      <Badge variant="de
+
+[33mcommit 65f5cbc7af8f37de62c02d422c4bca6e1063587a[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:55:35 2025 +0000
+
+    remove these arrow button i don want use it
+
+[33mcommit 44a9608427d285da0b8e32ba6b06255b757df006[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:49:34 2025 +0000
+
+    SLA (days), Owner  order two column and then Reviewer,Approver order two
+
+[33mcommit c3934035a009e9a0af8946ce6330185f8fbfdf90[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:45:50 2025 +0000
+
+    and remove satatus field in sop steps
+
+[33mcommit b0c4ab0134051fdb0a96db19ba11e5cfcbf44337[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:42:47 2025 +0000
+
+    SOP Steps  in this pl add field 'Reviewwer' :text , 'Approver' :text ord
+
+[33mcommit 5e85267aff6816537a3522642d46edc3f5036497[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:39:05 2025 +0000
+
+    I see this error with the app, reported by NextJS, please fix it. The er
+
+[33mcommit 0162c6fbd3f9deb4931176a5679eb3a013982540[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:38:13 2025 +0000
+
+    I see this error with the app, reported by NextJS, please fix it. The er
+
+[33mcommit b28b200229269e74b2fea7e1fc069f45a0fe6af7[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:33:49 2025 +0000
+
+    and add field in SOP Steps pls add field 'Next step yes' , 'Next step no
+
+[33mcommit d435b3e161ae702c4b05d5881f14f26fc37070a0[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:28:45 2025 +0000
+
+    SOP Steps  i want add field 'Step type' [dropdown two choice 'Sequence'
+
+[33mcommit befc788c26d77edaa05f49123632a8554c35fd6d[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:25:08 2025 +0000
+
+    Date Created ,Responsible Person (ผู้รับผิดชอบ), Standard Time (มาตราฐาน
+
+[33mcommit 23f9797887257314ed5f5e59e50ca2025e5dd6c6[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:23:23 2025 +0000
+
+    Make the following changes:
+    
+    ,
+    
+    Find this element:
+    
+      <FormItem>
+    
+    with t
+
+[33mcommit 3f0007ed37b9195111e6212e77e9cbac500c1e9c[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:19:37 2025 +0000
+
+    i want it saved as a separate piece of data
+
+[33mcommit 67f4346e283f763ea16927281df51625c6ba636e[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:14:15 2025 +0000
+
+    SOP Steps  // show sop_id block same with SOP ID on SOP Details
+
+[33mcommit bf418332daae020b05246eeb316d924d5d981ea9[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:11:31 2025 +0000
+
+    SOP Details   /// i want to add ID number of sop
+
+[33mcommit bb3ec6b73153405a680905c07c34572a5f58c8ee[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:06:37 2025 +0000
+
+    block Date Created,Responsible Person (ผู้รับผิดชอบ) ,Standard Time (มาต
+
+[33mcommit f9225434fcb25243973ef03943b9a74e435ee3d0[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:04:30 2025 +0000
+
+    Make the following changes:
+    
+    ,
+    
+    Find this element:
+    
+      <FormItem>
+    
+    with t
+
+[33mcommit fe70cc539ee0d90ce60124b89017111dd5b10d83[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 07:01:28 2025 +0000
+
+    add fill box Cluster , กลุ่ม, ส่วนงาน // order after department and add
+
+[33mcommit 31d358da3932dcfe196ac625b27daa24ba90638f[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 06:56:22 2025 +0000
+
+    i want change all font of all web to Kanit
+
+[33mcommit d4901ee90708288e849bc8085e1ba38607c69b37[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 06:53:46 2025 +0000
+
+    background side bar i want to balck color
+
+[33mcommit 17645dae569f9c7230f54b04363b4f4945674bd0[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 06:51:57 2025 +0000
+
+    i want on manu pls change to side bar manu
+
+[33mcommit 46258ebe852455b2e8930d68af128c73f602a9e9[m
+Author: Whatthebest <yoyonono19@gmail.com>
+Date:   Tue Aug 5 06:46:32 2025 +0000
+
+    Initial prototype
+
+[33mcommit cd1e7bf956deae76fe5b79e9e3ed943d42b6b2eb[m
+Author: Your Name <you@example.com>
+Date:   Thu Jul 31 21:08:26 2025 +0000
+
+    initial scaffold
