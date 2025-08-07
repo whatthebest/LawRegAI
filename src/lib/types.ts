@@ -39,3 +39,13 @@ export interface SOP {
   status: SOPStatus;
   steps: SOPStep[];
 }
+
+export type ProjectStatus = 'Planning' | 'In Progress' | 'Completed';
+
+export interface Project {
+    id: string;
+    name: string;
+    description: string;
+    status: ProjectStatus;
+    sop: string;
+}

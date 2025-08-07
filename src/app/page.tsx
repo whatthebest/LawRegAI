@@ -4,70 +4,195 @@
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import MainLayout from "@/components/MainLayout";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FilePlus2, ListChecks, CheckSquare, UserCog, Bot } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { ListChecks, CheckSquare, UserCog, Bot, FolderKanban, Clock, FileCheck2, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { mockSops, mockProjects } from "@/lib/mockData";
+import type { SOP, SOPStep } from "@/lib/types";
+import { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
 
-const navItems = [
-  {
-    href: "/create-sop",
-    icon: <FilePlus2 className="w-8 h-8 text-primary" />,
-    title: "Create SOP",
-    description: "Start a new Standard Operating Procedure.",
-  },
-  {
-    href: "/sops",
-    icon: <ListChecks className="w-8 h-8 text-primary" />,
-    title: "View SOPs",
-    description: "Browse and manage existing procedures.",
-  },
-  {
-    href: "/tasks",
-    icon: <CheckSquare className="w-8 h-8 text-primary" />,
-    title: "Work Tracker",
-    description: "View steps and procedures assigned to you.",
-  },
-  {
-    href: "/admin",
-    icon: <UserCog className="w-8 h-8 text-primary" />,
-    title: "Admin",
-    description: "Manage users and system settings.",
-    disabled: false,
-  },
-];
-
-const NavCard = ({ href, icon, title, description, disabled }: (typeof navItems)[0]) => (
-  <Link href={disabled ? "#" : href} passHref className={disabled ? "pointer-events-none" : ""}>
-    <Card className={`h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${disabled ? 'bg-muted/50' : 'hover:bg-card/90'}`}>
-      <CardHeader className="flex flex-col items-center justify-center text-center gap-4 p-6">
-        {icon}
-        <div className="space-y-1">
-          <CardTitle className={`${disabled ? 'text-muted-foreground' : ''}`}>{title}</CardTitle>
-          <CardDescription className={disabled ? 'text-muted-foreground' : ''}>{description}</CardDescription>
-        </div>
-      </CardHeader>
-    </Card>
-  </Link>
-);
-
+interface Task extends SOPStep {
+  sopTitle: string;
+  sopId: string;
+}
 
 export default function HomePage() {
   const { user } = useAuth();
 
+  const { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview } = useMemo(() => {
+    if (!user) {
+      return {
+        toReviewTasks: [],
+        toApproveTasks: [],
+        projectsInProgress: [],
+        sopsInReview: [],
+      };
+    }
+
+    const allTasks: Task[] = [];
+    const sopsInReview: SOP[] = [];
+
+    mockSops.forEach(sop => {
+      if (sop.status === 'In Review') {
+          sopsInReview.push(sop);
+      }
+      sop.steps.forEach(step => {
+        if (step.reviewer === user.email || step.approver === user.email) {
+          allTasks.push({ ...step, sopTitle: sop.title, sopId: sop.id });
+        }
+      });
+    });
+
+    const toReviewTasks = allTasks.filter(task => task.reviewer === user?.email && task.status === 'Review');
+    const toApproveTasks = allTasks.filter(task => task.approver === user?.email && task.status === 'Review');
+    
+    const projectsInProgress = mockProjects.filter(p => p.status === 'In Progress');
+
+    return { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview };
+  }, [user]);
+
   return (
     <MainLayout>
-      <div className="flex flex-col gap-4 md:gap-6">
+      <div className="flex flex-col gap-2 mb-8">
         <h1 className="text-4xl md:text-5xl font-bold text-primary">
           Welcome, {user?.name}!
         </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl">
-          SOP Central is your hub for creating, managing, and tracking all standard operating procedures. What would you like to do today?
+        <p className="text-lg text-muted-foreground max-w-3xl">
+          Here's your personal dashboard. Track your projects, review tasks, and manage SOPs all in one place.
         </p>
       </div>
-      <div className="mt-8 md:mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {navItems.map((item) => (
-          <NavCard key={item.title} {...item} />
-        ))}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Projects In Progress</CardTitle>
+            <FolderKanban className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{projectsInProgress.length}</div>
+            <p className="text-xs text-muted-foreground">Active work items</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">SOPs In Review</CardTitle>
+            <FileCheck2 className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{sopsInReview.length}</div>
+            <p className="text-xs text-muted-foreground">Pending manager approval</p>
+          </CardContent>
+        </Card>
+         <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Tasks to Review</CardTitle>
+            <Clock className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{toReviewTasks.length}</div>
+            <p className="text-xs text-muted-foreground">Steps waiting for your review</p>
+          </CardContent>
+        </Card>
+         <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Tasks to Approve</CardTitle>
+            <CheckSquare className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{toApproveTasks.length}</div>
+            <p className="text-xs text-muted-foreground">Steps waiting for your approval</p>
+          </CardContent>
+        </Card>
       </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>My Projects</CardTitle>
+            <CardDescription>A list of your recent projects.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid md:grid-cols-2 gap-4">
+            {mockProjects.slice(0, 4).map(project => (
+                 <Card key={project.id}>
+                    <CardHeader>
+                        <CardTitle className="flex justify-between items-center text-lg">
+                            {project.name}
+                            <Badge variant={project.status === 'Completed' ? 'default' : 'secondary'}>{project.status}</Badge>
+                        </CardTitle>
+                        <CardDescription>{mockSops.find(s => s.id === project.sop)?.title}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground line-clamp-2 h-10">{project.description}</p>
+                    </CardContent>
+                    <CardFooter>
+                       <Link href={`/projects/${project.id}`} passHref>
+                          <Button variant="outline" size="sm" className="w-full">View Project</Button>
+                        </Link>
+                    </CardFooter>
+                </Card>
+            ))}
+          </CardContent>
+           <CardFooter>
+              <Link href="/tasks" passHref className="w-full">
+                <Button variant="ghost" className="w-full gap-2">
+                    View All Projects <ArrowRight className="w-4 h-4" />
+                </Button>
+            </Link>
+           </CardFooter>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>My Action Items</CardTitle>
+                <CardDescription>SOP steps assigned to you for review or approval.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold mb-2">To Review ({toReviewTasks.length})</h4>
+                 {toReviewTasks.length > 0 ? (
+                  <div className="space-y-2">
+                    {toReviewTasks.slice(0, 2).map(task => (
+                      <Link href={`/sops/${task.sopId}`} key={`${task.id}-${task.sopId}`} className="block">
+                        <div className="p-3 border rounded-md hover:bg-muted/50 transition-colors">
+                            <p className="text-xs text-muted-foreground">{task.sopTitle}</p>
+                            <p className="font-medium text-sm truncate">Step {task.stepOrder}: {task.title}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No items to review.</p>
+                )}
+              </div>
+               <div>
+                <h4 className="text-sm font-semibold mb-2">To Approve ({toApproveTasks.length})</h4>
+                 {toApproveTasks.length > 0 ? (
+                  <div className="space-y-2">
+                    {toApproveTasks.slice(0, 2).map(task => (
+                      <Link href={`/sops/${task.sopId}`} key={`${task.id}-${task.sopId}`} className="block">
+                         <div className="p-3 border rounded-md hover:bg-muted/50 transition-colors">
+                           <p className="text-xs text-muted-foreground">{task.sopTitle}</p>
+                           <p className="font-medium text-sm truncate">Step {task.stepOrder}: {task.title}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No items to approve.</p>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Link href="/tasks" passHref className="w-full">
+                <Button variant="ghost" className="w-full gap-2">
+                    Go to Work Tracker <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </CardFooter>
+        </Card>
+      </div>
+
     </MainLayout>
   );
 }

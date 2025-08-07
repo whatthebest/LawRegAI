@@ -7,7 +7,7 @@ import MainLayout from '@/components/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { mockSops } from '@/lib/mockData';
+import { mockSops, mockProjects } from '@/lib/mockData';
 import { SOP, SOPStep } from '@/lib/types';
 import { Check, Clock, PlusCircle, FolderKanban, Briefcase } from 'lucide-react';
 import Link from 'next/link';
@@ -31,13 +31,6 @@ interface Task extends SOPStep {
   sopTitle: string;
   sopId: string;
 }
-
-// Mock project data for the new tab
-const mockProjects = [
-    { id: "q3-marketing-campaign", name: "Q3 Marketing Campaign", description: "Launch campaign for the new product line.", status: "In Progress", sop: "sop-004" },
-    { id: "website-redesign", name: "Website Redesign", description: "Complete overhaul of the corporate website.", status: "Planning", sop: "sop-002" },
-    { id: "new-hire-batch-onboarding", name: "New Hire Batch Onboarding", description: "Onboard the new batch of engineers.", status: "Completed", sop: "sop-001" },
-];
 
 export default function TasksPage() {
   const { user } = useAuth();

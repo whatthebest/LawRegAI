@@ -1,4 +1,4 @@
-import { SOP, SOPDepartment, SOPStatus, SOPStepStatus } from './types';
+import { SOP, SOPDepartment, SOPStatus, SOPStepStatus, Project } from './types';
 
 // mock data
 export const mockSops: SOP[] = [
@@ -74,6 +74,12 @@ export const mockSops: SOP[] = [
       { id: 'step-4-2', stepOrder: 2, title: 'Legal Review', detail: 'Legal team reviews the post for compliance.', sla: 1, owner: 'legal@company.com', reviewer: 'legal-head@company.com', approver: 'legal-head@company.com', status: 'Approved', stepType: 'Sequence' },
     ],
   },
+];
+
+export const mockProjects: Project[] = [
+    { id: "q3-marketing-campaign", name: "Q3 Marketing Campaign", description: "Launch campaign for the new product line.", status: "In Progress", sop: "sop-004" },
+    { id: "website-redesign", name: "Website Redesign", description: "Complete overhaul of the corporate website.", status: "Planning", sop: "sop-002" },
+    { id: "new-hire-batch-onboarding", name: "New Hire Batch Onboarding", description: "Onboard the new batch of engineers.", status: "Completed", sop: "sop-001" },
 ];
 
 export const sopDepartments: SOPDepartment[] = ['Operations', 'Engineering', 'HR', 'Marketing'];
