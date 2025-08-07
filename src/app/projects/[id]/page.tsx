@@ -192,16 +192,7 @@ export default function ProjectDetailPage() {
                                             <Badge variant={getStatusBadgeVariant(task.status)}>{task.status}</Badge>
                                         </div>
                                     </div>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <p className="text-sm text-muted-foreground truncate">{task.detail}</p>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{task.detail}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    <p className="text-sm text-muted-foreground">{task.detail}</p>
 
                                     <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs pt-2">
                                         <div className="flex items-center gap-1.5"><Clock className="w-3 h-3"/> SLA: {task.sla} days</div>
