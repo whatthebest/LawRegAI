@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from 'react';
+import type { VariantProps } from 'class-variance-authority';
 import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
 import MainLayout from '@/components/MainLayout';
@@ -17,6 +18,7 @@ import { useForm } from 'react-hook-form';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge, badgeVariants } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const mockProjects = [
     { id: "q3-marketing-campaign", name: "Q3 Marketing Campaign", description: "Launch campaign for the new product line.", status: "In Progress", sop: "sop-004" },
@@ -162,12 +164,21 @@ export default function ProjectDetailPage() {
                     {tasks.length > 0 ? tasks.map(task => (
                         <Card key={task.id} className="p-4">
                             <div className="flex items-start gap-4">
-                                <div className="flex-1 space-y-2">
+                                <div className="flex-1 space-y-2 min-w-0">
                                     <div className="flex justify-between items-center">
-                                        <Label className="text-lg font-semibold">
-                                            {task.name}
-                                        </Label>
-                                        <div className="flex items-center gap-2">
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Label className="text-lg font-semibold truncate">
+                                                        {task.name}
+                                                    </Label>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{task.name}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <div className="flex items-center gap-2 flex-shrink-0">
                                              <Select value={task.status} onValueChange={(value: TaskStatus) => handleStatusChange(task.id, value)}>
                                                 <SelectTrigger className="w-[180px] h-8">
                                                     <SelectValue placeholder="Set status" />
@@ -181,7 +192,17 @@ export default function ProjectDetailPage() {
                                             <Badge variant={getStatusBadgeVariant(task.status)}>{task.status}</Badge>
                                         </div>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">{task.detail}</p>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <p className="text-sm text-muted-foreground truncate">{task.detail}</p>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{task.detail}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+
                                     <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs pt-2">
                                         <div className="flex items-center gap-1.5"><Clock className="w-3 h-3"/> SLA: {task.sla} days</div>
                                         <div className="flex items-center gap-1.5"><User className="w-3 h-3"/> Owner: {task.owner}</div>
