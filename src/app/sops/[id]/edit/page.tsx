@@ -1,14 +1,13 @@
 
 "use client";
 
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/context/AuthContext";
 import MainLayout from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -20,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { FileUpload } from "@/components/FileUpload";
 
 const sopStepSchema = z.object({
   id: z.string(),
@@ -34,7 +34,7 @@ const sopStepSchema = z.object({
   reviewer: z.string().email("Reviewer must be a valid email."),
   approver: z.string().email("Approver must be a valid email."),
   status: z.enum(['Draft', 'Review', 'Approved']),
-  attachment: z.any().optional(),
+  attachments: z.array(z.instanceof(File)).optional(),
 });
 
 const sopFormSchema = z.object({
@@ -48,6 +48,7 @@ const sopFormSchema = z.object({
   responsiblePerson: z.string().min(1, "Responsible person is required."),
   sla: z.coerce.number().int().positive("SLA must be a positive number."),
   steps: z.array(sopStepSchema).min(1, "At least one step is required."),
+  attachments: z.array(z.instanceof(File)).optional(),
 });
 
 type SopFormValues = z.infer<typeof sopFormSchema>;
@@ -70,6 +71,7 @@ export default function EditSopPage() {
       responsiblePerson: user?.name || '',
       sla: 1,
       steps: [],
+      attachments: [],
     },
   });
   
@@ -95,12 +97,14 @@ export default function EditSopPage() {
           section: sopToEdit.section,
           responsiblePerson: sopToEdit.responsiblePerson,
           sla: sopToEdit.sla,
+          attachments: [], // Cannot pre-populate file inputs
         });
         
         const formattedSteps = sopToEdit.steps.map(s => ({
           ...s,
           nextStepYes: s.nextStepYes,
           nextStepNo: s.nextStepNo,
+          attachments: [], // Cannot pre-populate file inputs
         }));
         replace(formattedSteps);
 
@@ -110,7 +114,7 @@ export default function EditSopPage() {
   }, [sopIdToEdit, form, replace]);
 
   const handleAppend = () => {
-    append({ id: `new-step-${Date.now()}`, stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', status: 'Draft', nextStepYes: '', nextStepNo: '' });
+    append({ id: `new-step-${Date.now()}`, stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', status: 'Draft', nextStepYes: '', nextStepNo: '', attachments: [] });
   };
 
   const handleRemove = (index: number) => {
@@ -229,11 +233,23 @@ export default function EditSopPage() {
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormItem>
-                <FormLabel>File Attachment (Optional)</FormLabel>
-                <FormControl><Input type="file" /></FormControl>
-                <FormDescription>Upload any relevant documents, templates, or diagrams.</FormDescription>
-              </FormItem>
+              <FormField
+                control={form.control}
+                name="attachments"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>File Attachment (Optional)</FormLabel>
+                    <FormControl>
+                        <FileUpload
+                            value={field.value}
+                            onChange={field.onChange}
+                        />
+                    </FormControl>
+                    <FormDescription>Upload any relevant documents, templates, or diagrams.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </CardContent>
           </Card>
 
@@ -306,20 +322,29 @@ export default function EditSopPage() {
                       )} />
                     </div>
                   </div>
-                  <FormField control={form.control} name={`steps.${index}.attachment`} render={({ field }) => (
-                     <FormItem>
+                   <FormField
+                    control={form.control}
+                    name={`steps.${index}.attachments`}
+                    render={({ field }) => (
+                      <FormItem>
                         <FormLabel>File Attachment (Optional)</FormLabel>
-                        <FormControl><Input type="file" /></FormControl>
+                        <FormControl>
+                          <FileUpload
+                            value={field.value}
+                            onChange={field.onChange}
+                          />
+                        </FormControl>
                         <FormMessage />
-                    </FormItem>
-                  )} />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               ))}
               <Button type="button" variant="outline" onClick={handleAppend} className="gap-2">
                 <PlusCircle className="w-4 h-4" /> Add New Step
               </Button>
                {form.formState.errors.steps && (
-                <p className="text-sm font-medium text-destructive">{form.formState.errors.steps.message}</p>
+                <p className="text-sm font-medium text-destructive">{typeof form.formState.errors.steps === 'string' ? form.formState.errors.steps : form.formState.errors.steps.message}</p>
               )}
             </CardContent>
           </Card>
