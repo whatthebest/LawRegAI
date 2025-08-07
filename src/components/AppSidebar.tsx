@@ -48,7 +48,7 @@ export default function AppSidebar() {
             <SidebarMenuItem key={link.href}>
               <Link href={link.href} passHref legacyBehavior>
                  <SidebarMenuButton 
-                  isActive={pathname === link.href}
+                  isActive={link.href === '/' ? pathname === link.href : pathname.startsWith(link.href)}
                   tooltip={link.label}
                  >
                     <link.icon/>
