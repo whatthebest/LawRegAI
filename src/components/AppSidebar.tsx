@@ -34,6 +34,16 @@ export default function AppSidebar() {
 
   const userInitials = user?.name.split(' ').map(n => n[0]).join('') || 'U';
 
+  const isLinkActive = (href: string) => {
+    if (href === '/') {
+        return pathname === href;
+    }
+    if (href === '/tasks') {
+        return pathname.startsWith(href) || pathname.startsWith('/projects');
+    }
+    return pathname.startsWith(href);
+  };
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -48,7 +58,7 @@ export default function AppSidebar() {
             <SidebarMenuItem key={link.href}>
               <Link href={link.href} passHref legacyBehavior>
                  <SidebarMenuButton 
-                  isActive={link.href === '/' ? pathname === link.href : pathname.startsWith(link.href)}
+                  isActive={isLinkActive(link.href)}
                   tooltip={link.label}
                  >
                     <link.icon/>
