@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { useForm } from 'react-hook-form';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 
 const mockProjects = [
     { id: "q3-marketing-campaign", name: "Q3 Marketing Campaign", description: "Launch campaign for the new product line.", status: "In Progress", sop: "sop-004" },
@@ -38,9 +38,9 @@ interface Task {
 
 type TaskFormValues = Omit<Task, 'id' | 'status'>;
 
-const getStatusBadgeVariant = (status: TaskStatus) => {
+const getStatusBadgeVariant = (status: TaskStatus): VariantProps<typeof badgeVariants>["variant"] => {
     switch (status) {
-        case 'In Progress': return 'secondary';
+        case 'In Progress': return 'warning';
         case 'Ready for Review': return 'default';
         case 'Not Started':
         default:
@@ -164,7 +164,7 @@ export default function ProjectDetailPage() {
                             <div className="flex items-start gap-4">
                                 <div className="flex-1 space-y-2">
                                     <div className="flex justify-between items-center">
-                                        <Label htmlFor={`task-${task.id}`} className="text-lg font-semibold">
+                                        <Label className="text-lg font-semibold">
                                             {task.name}
                                         </Label>
                                         <div className="flex items-center gap-2">
