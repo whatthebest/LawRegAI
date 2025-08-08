@@ -174,7 +174,7 @@ export default function ProjectDetailPage() {
                                                 <SelectContent>
                                                     <SelectItem value="Draft">Not Started</SelectItem>
                                                     <SelectItem value="Review">In Progress</SelectItem>
-                                                    <SelectItem value="Approved">Completed</SelectItem>
+                                                    <SelectItem value="Approved">Ready to Review</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             <Badge variant={getStatusBadgeVariant(task.status)}>{task.status}</Badge>
