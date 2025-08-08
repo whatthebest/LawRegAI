@@ -12,33 +12,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { mockSops, mockProjects } from '@/lib/mockData';
-import { Edit, Plus, Trash2, User, Clock, Shield } from 'lucide-react';
+import { Edit, User, Clock, Shield } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import type { SOPStep, SOPStepStatus } from '@/lib/types';
 
-type TaskStatus = "Not Started" | "In Progress" | "Ready for Review";
-
-interface Task {
-  id: string;
-  name: string;
-  detail: string;
-  sla: number;
-  owner: string;
-  manager: string;
-  status: TaskStatus;
-}
-
-type TaskFormValues = Omit<Task, 'id' | 'status'>;
-
-const getStatusBadgeVariant = (status: TaskStatus): VariantProps<typeof badgeVariants>["variant"] => {
+const getStatusBadgeVariant = (status: SOPStepStatus): VariantProps<typeof badgeVariants>["variant"] => {
     switch (status) {
-        case 'In Progress': return 'warning';
-        case 'Ready for Review': return 'default';
-        case 'Not Started':
+        case 'Review': return 'warning';
+        case 'Approved': return 'default';
+        case 'Draft':
         default:
             return 'outline';
     }
@@ -57,12 +44,10 @@ export default function ProjectDetailPage() {
   
   const [project, setProject] = useState(() => mockProjects.find(p => p.id === projectId));
   const [sop, setSop] = useState(() => mockSops.find(s => s.id === project?.sop));
+  const [tasks, setTasks] = useState<SOPStep[]>([]);
 
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<TaskFormValues>();
   const { register: registerProject, handleSubmit: handleSubmitProject, reset: resetProject } = useForm<ProjectFormValues>();
 
   useEffect(() => {
@@ -73,23 +58,16 @@ export default function ProjectDetailPage() {
             sop: project.sop,
         });
     }
-  }, [project, resetProject]);
+    if (sop) {
+      setTasks(sop.steps);
+    }
+  }, [project, sop, resetProject]);
 
   if (!project || !sop) {
     notFound();
   }
-
-  const handleAddTask = (data: TaskFormValues) => {
-    setTasks([...tasks, { ...data, id: `task-${Date.now()}`, status: 'Not Started' }]);
-    reset();
-    setIsAddTaskOpen(false);
-  };
   
-  const removeTask = (taskId: string) => {
-    setTasks(tasks.filter(t => t.id !== taskId));
-  };
-
-  const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
+  const handleStatusChange = (taskId: string, newStatus: SOPStepStatus) => {
     setTasks(tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
   };
   
@@ -99,7 +77,10 @@ export default function ProjectDetailPage() {
     const updatedProject = { ...project, ...data };
     const updatedSop = mockSops.find(s => s.id === data.sop);
     setProject(updatedProject);
-    if(updatedSop) setSop(updatedSop);
+    if(updatedSop) {
+      setSop(updatedSop);
+      setTasks(updatedSop.steps);
+    }
     setIsEditProjectOpen(false);
   };
 
@@ -139,7 +120,7 @@ export default function ProjectDetailPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="projectSop">Relevant SOP</Label>
-                <Select {...registerProject("sop")} onValueChange={(value) => resetProject({...project, sop: value})} defaultValue={project.sop}>
+                <Select onValueChange={(value) => resetProject({...project, sop: value})} defaultValue={project.sop}>
                   <SelectTrigger id="projectSop">
                     <SelectValue placeholder="Select an SOP" />
                   </SelectTrigger>
@@ -163,60 +144,8 @@ export default function ProjectDetailPage() {
         <div className="md:col-span-2 space-y-8">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                    <CardTitle>Project To-Do List</CardTitle>
-                    <CardDescription>Track tasks specific to this project.</CardDescription>
-                </div>
-                 <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="gap-2">
-                            <Plus className="w-4 h-4" /> Add Task
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Add a new task</DialogTitle>
-                            <DialogDescription>Fill in the details for the new project task.</DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleSubmit(handleAddTask)} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Task Name</Label>
-                                <Input id="name" {...register("name", { required: "Task name is required." })} />
-                                {errors.name && <p className="text-destructive text-sm">{errors.name.message}</p>}
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="detail">Detail</Label>
-                                <Textarea id="detail" {...register("detail", { required: "Detail is required." })} />
-                                {errors.detail && <p className="text-destructive text-sm">{errors.detail.message}</p>}
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="sla">SLA (days)</Label>
-                                    <Input id="sla" type="number" {...register("sla", { required: "SLA is required.", valueAsNumber: true })} />
-                                    {errors.sla && <p className="text-destructive text-sm">{errors.sla.message}</p>}
-                                </div>
-                                 <div className="space-y-2">
-                                    <Label htmlFor="owner">Owner</Label>
-                                    <Input id="owner" {...register("owner", { required: "Owner is required." })} />
-                                    {errors.owner && <p className="text-destructive text-sm">{errors.owner.message}</p>}
-                                </div>
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="manager">Manager</Label>
-                                <Input id="manager" {...register("manager", { required: "Manager is required." })} />
-                                {errors.manager && <p className="text-destructive text-sm">{errors.manager.message}</p>}
-                            </div>
-                            <div className="flex justify-end gap-2 pt-4">
-                               <DialogClose asChild>
-                                    <Button type="button" variant="ghost">Cancel</Button>
-                                </DialogClose>
-                                <Button type="submit">Add Task</Button>
-                            </div>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-              </div>
+              <CardTitle>Project To-Do List</CardTitle>
+              <CardDescription>Tasks generated from the linked SOP: "{sop.title}"</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="space-y-4">
@@ -228,24 +157,24 @@ export default function ProjectDetailPage() {
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Label className="text-lg font-semibold truncate">
-                                                        {task.name}
+                                                    <Label className="text-lg font-semibold truncate cursor-pointer">
+                                                        {task.title}
                                                     </Label>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                    <p>{task.name}</p>
+                                                    <p>{task.title}</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
                                         <div className="flex items-center gap-2 flex-shrink-0">
-                                             <Select value={task.status} onValueChange={(value: TaskStatus) => handleStatusChange(task.id, value)}>
+                                             <Select value={task.status} onValueChange={(value: SOPStepStatus) => handleStatusChange(task.id, value)}>
                                                 <SelectTrigger className="w-[180px] h-8">
                                                     <SelectValue placeholder="Set status" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="Not Started">Not Started</SelectItem>
-                                                    <SelectItem value="In Progress">In Progress</SelectItem>
-                                                    <SelectItem value="Ready for Review">Ready for Review</SelectItem>
+                                                    <SelectItem value="Draft">Not Started</SelectItem>
+                                                    <SelectItem value="Review">In Progress</SelectItem>
+                                                    <SelectItem value="Approved">Completed</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             <Badge variant={getStatusBadgeVariant(task.status)}>{task.status}</Badge>
@@ -256,16 +185,13 @@ export default function ProjectDetailPage() {
                                     <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs pt-2">
                                         <div className="flex items-center gap-1.5"><Clock className="w-3 h-3"/> SLA: {task.sla} days</div>
                                         <div className="flex items-center gap-1.5"><User className="w-3 h-3"/> Owner: {task.owner}</div>
-                                        <div className="flex items-center gap-1.5"><Shield className="w-3 h-3"/> Manager: {task.manager}</div>
+                                        <div className="flex items-center gap-1.5"><Shield className="w-3 h-3"/> Reviewer: {task.reviewer}</div>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="icon" className="w-8 h-8 shrink-0" onClick={() => removeTask(task.id)}>
-                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                </Button>
                             </div>
                         </Card>
                     )) : (
-                        <p className="text-sm text-muted-foreground text-center py-8">No tasks added yet. Click "Add Task" to get started.</p>
+                        <p className="text-sm text-muted-foreground text-center py-8">This SOP has no steps defined.</p>
                     )}
                 </div>
             </CardContent>
