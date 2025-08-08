@@ -31,12 +31,22 @@ const getStatusBadgeVariant = (status: SOPStepStatus): VariantProps<typeof badge
     }
 };
 
+const getStatusBadgeText = (status: SOPStepStatus): string => {
+    switch (status) {
+        case 'Review': return 'Pending Review';
+        case 'Approved': return 'Approved';
+        case 'Draft': return 'Not Started';
+        default:
+            return 'Pending';
+    }
+};
+
+
 interface ProjectFormValues {
     name: string;
     description: string;
     sop: string;
 }
-
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -59,7 +69,7 @@ export default function ProjectDetailPage() {
         });
     }
     if (sop) {
-      setTasks(sop.steps);
+      setTasks(sop.steps.map(step => ({...step, status: step.status || 'Draft'})));
     }
   }, [project, sop, resetProject]);
 
@@ -72,14 +82,13 @@ export default function ProjectDetailPage() {
   };
   
   const handleEditProject = (data: ProjectFormValues) => {
-    // In a real app, you would send this to your backend/API
     console.log("Updated project data:", data);
     const updatedProject = { ...project, ...data };
     const updatedSop = mockSops.find(s => s.id === data.sop);
     setProject(updatedProject);
     if(updatedSop) {
       setSop(updatedSop);
-      setTasks(updatedSop.steps);
+      setTasks(updatedSop.steps.map(step => ({...step, status: step.status || 'Draft'})));
     }
     setIsEditProjectOpen(false);
   };
@@ -151,7 +160,7 @@ export default function ProjectDetailPage() {
                 <div className="space-y-4">
                     {tasks.length > 0 ? tasks.map(task => (
                         <Card key={task.id} className="p-4 pt-10 relative">
-                             <Badge variant={getStatusBadgeVariant(task.status)} className="absolute top-3 left-3">{task.status}</Badge>
+                             <Badge variant={getStatusBadgeVariant(task.status)} className="absolute top-3 left-3">{getStatusBadgeText(task.status)}</Badge>
                             <div className="flex items-start gap-4">
                                 <div className="flex-1 space-y-2 min-w-0">
                                     <div className="flex justify-between items-center">
@@ -174,8 +183,8 @@ export default function ProjectDetailPage() {
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="Draft">Not Started</SelectItem>
-                                                    <SelectItem value="Review">In Progress</SelectItem>
-                                                    <SelectItem value="Approved">Ready to Review</SelectItem>
+                                                    <SelectItem value="Approved">In Progress</SelectItem>
+                                                    <SelectItem value="Review">Ready to Review</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -212,3 +221,4 @@ export default function ProjectDetailPage() {
     </MainLayout>
   );
 }
+
