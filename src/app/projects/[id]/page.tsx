@@ -150,7 +150,8 @@ export default function ProjectDetailPage() {
             <CardContent className="space-y-4">
                 <div className="space-y-4">
                     {tasks.length > 0 ? tasks.map(task => (
-                        <Card key={task.id} className="p-4">
+                        <Card key={task.id} className="p-4 pt-10 relative">
+                             <Badge variant={getStatusBadgeVariant(task.status)} className="absolute top-3 left-3">{task.status}</Badge>
                             <div className="flex items-start gap-4">
                                 <div className="flex-1 space-y-2 min-w-0">
                                     <div className="flex justify-between items-center">
@@ -177,7 +178,6 @@ export default function ProjectDetailPage() {
                                                     <SelectItem value="Approved">Ready to Review</SelectItem>
                                                 </SelectContent>
                                             </Select>
-                                            <Badge variant={getStatusBadgeVariant(task.status)}>{task.status}</Badge>
                                         </div>
                                     </div>
                                     <p className="text-sm text-muted-foreground break-words">{task.detail}</p>
