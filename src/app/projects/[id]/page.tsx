@@ -27,7 +27,7 @@ const getStatusBadgeVariant = (status: SOPStepStatus): VariantProps<typeof badge
         case 'Approved': return 'default';
         case 'Draft':
         default:
-            return 'outline';
+            return 'destructive';
     }
 };
 
