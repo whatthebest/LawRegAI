@@ -34,7 +34,7 @@ const getStatusBadgeVariant = (status: SOPStepStatus): VariantProps<typeof badge
 const getStatusBadgeText = (status: SOPStepStatus): string => {
     switch (status) {
         case 'Review': return 'Pending Review';
-        case 'Approved': return 'Approved';
+        case 'Approved': return 'In Progress';
         case 'Draft': return 'Not Started';
         default:
             return 'Pending';
