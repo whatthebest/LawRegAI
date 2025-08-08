@@ -106,13 +106,34 @@ export default function CreateSopPage() {
   }
 
   function onSubmit(data: SopFormValues) {
-    console.log(data);
-    toast({
-      title: "SOP Created Successfully!",
-      description: `The SOP "${data.title}" has been saved.`,
-      className: "bg-green-100 dark:bg-green-900 border-green-400 dark:border-green-600",
+    // Remove file objects as we are not handling file uploads in the backend yet
+    const dataWithoutFiles = { ...data };
+    delete dataWithoutFiles.attachments;
+    dataWithoutFiles.steps = dataWithoutFiles.steps.map(step => {
+      const stepWithoutFiles = { ...step };
+      delete stepWithoutFiles.attachments;
+      return stepWithoutFiles;
     });
-    router.push("/sops");
+
+    fetch('/api/create-sop', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(dataWithoutFiles),
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.message === 'SOP created successfully') {
+        toast({ title: "Success!", description: "SOP created successfully.", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" });
+      } else {
+        toast({ title: "Error", description: result.error || "Failed to create SOP.", variant: "destructive" });
+      }
+    })
+    .catch(error => {
+      console.error('Error submitting form:', error);
+      toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
+    });
   }
 
   return (
