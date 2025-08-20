@@ -14,7 +14,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { PlusCircle, Trash2 } from "lucide-react";
-import { sopDepartments, mockSops } from "@/lib/mockData";
+import { sopDepartments} from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -79,17 +79,21 @@ export default function CreateSopPage() {
   const steps = form.watch("steps");
 
   useEffect(() => {
-    const existingIds = mockSops.map(sop => parseInt(sop.id.split('-')[1], 10));
-    const maxId = Math.max(0, ...existingIds);
-    const newIdNumber = maxId + 1;
-    const newSopId = `sop-${newIdNumber.toString().padStart(3, '0')}`;
-
-    form.setValue('sopId', newSopId);
-    setDateCreated(new Date().toLocaleDateString('en-CA'));
-    if (user) {
-      form.setValue('responsiblePerson', user.name);
+  const bootstrap = async () => {
+    try {
+      const res = await fetch('/api/sop'); // GET preview id from server
+      const data = await res.json();
+      form.setValue('sopId', data?.nextSopId || 'sop-???'); // display-only
+    } catch {
+      form.setValue('sopId', 'sop-???');
     }
-  }, [user, form]);
+
+    setDateCreated(new Date().toLocaleDateString('en-CA'));
+    if (user) form.setValue('responsiblePerson', user.name);
+  };
+
+  bootstrap();
+}, [user, form]);
 
   const handleAppend = () => {
     append({ stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', nextStepYes: '', nextStepNo: '', attachments: [] });
@@ -106,34 +110,43 @@ export default function CreateSopPage() {
   }
 
   function onSubmit(data: SopFormValues) {
-    // Remove file objects as we are not handling file uploads in the backend yet
-    const dataWithoutFiles = { ...data };
-    delete dataWithoutFiles.attachments;
-    dataWithoutFiles.steps = dataWithoutFiles.steps.map(step => {
-      const stepWithoutFiles = { ...step };
-      delete stepWithoutFiles.attachments;
-      return stepWithoutFiles;
+    // Remove File objects from the payload
+    const { attachments, steps, ...rest } = data as any;
+  
+    const cleanSteps = (steps ?? []).map((s: any) => {
+      const { attachments: _ignored, ...sRest } = s;
+      return sRest;
     });
-
-    fetch('/api/create-sop', {
+  
+    const payload = { ...rest, steps: cleanSteps };
+  
+    fetch('/api/sop', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(dataWithoutFiles),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     })
-    .then(response => response.json())
-    .then(result => {
-      if (result.message === 'SOP created successfully') {
-        toast({ title: "Success!", description: "SOP created successfully.", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" });
-      } else {
-        toast({ title: "Error", description: result.error || "Failed to create SOP.", variant: "destructive" });
-      }
-    })
-    .catch(error => {
-      console.error('Error submitting form:', error);
-      toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
-    });
+      .then(async (res) => {
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(result?.error || 'Request failed');
+  
+        // success
+        toast({
+          title: 'Success!',
+          description: 'SOP created successfully.',
+          className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+        });
+        // Optional: reset or redirect
+        // form.reset();
+        // router.push('/sops');
+        // 🔄 Refresh the preview ID for the next entry
+        fetch('/api/sop')
+          .then(r => r.json())
+          .then(d => d?.nextSopId && form.setValue('sopId', d.nextSopId));
+      })
+      .catch((error) => {
+        console.error('Error submitting form:', error);
+        toast({ title: 'Error', description: String(error?.message || error), variant: 'destructive' });
+      });
   }
 
   return (
