@@ -7,4 +7,5 @@ To get started, take a look at src/app/page.tsx.
 
 # confix 
 firebase realtime database
+
 firebase CLI
