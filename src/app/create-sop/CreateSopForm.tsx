@@ -60,11 +60,12 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
   const router = useRouter();
 
   const [dateCreated, setDateCreated] = useState("");
+  const [uploadKey, setUploadKey] = useState(0);
 
   const form = useForm<SopFormValues>({
     resolver: zodResolver(sopFormSchema),
     defaultValues: {
-      sopId: initialSopId,             // 👈 already resolved on the server
+      sopId: "",             // 👈 already resolved on the server
       title: "",
       description: "",
       responsiblePerson: user?.name || "",
@@ -88,6 +89,22 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
     if (user) form.setValue("responsiblePerson", user.name);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  useEffect(() => {
+    async function fetchNextSopId() {
+      try {
+        const res = await fetch("/api/sop", { cache: "no-store" });
+        const data = await res.json();
+        if (res.ok && data?.nextSopId) {
+          form.setValue("sopId", data.nextSopId); // 👈 This updates form state
+        }
+      } catch (e) {
+        console.error("Failed to fetch next SOP ID", e);
+      }
+    }
+  
+    fetchNextSopId();
+  }, []);
 
   const handleAppend = () => {
     append({
@@ -149,16 +166,19 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
         sopId: nextId,
         title: "",
         description: "",
-        cluster: undefined,
-        group: undefined,
-        section: undefined,
+        department: undefined,          // <-- make Select go back to placeholder
+        cluster: "",
+        group: "",
+        section: "",
         responsiblePerson: user?.name || "",
         sla: 1,
-        steps: [],
-        attachments: [],
+        steps: [],                      // <-- removes all step cards
+        attachments: [],                // <-- clears top-level attachments value
       } as Partial<SopFormValues>);
-
+      
+      setUploadKey((k) => k + 1);        // <-- force FileUpload to re-mount (clears UI
       setDateCreated(new Date().toLocaleDateString("en-CA"));
+
       // router.push('/sops') // optional
     } catch (error: any) {
       console.error("Error submitting form:", error);
@@ -335,7 +355,7 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
                   <FormItem>
                     <FormLabel>File Attachment (Optional)</FormLabel>
                     <FormControl>
-                      <FileUpload value={field.value} onChange={field.onChange} />
+                      <FileUpload key={uploadKey} value={field.value} onChange={field.onChange} />
                     </FormControl>
                     <FormDescription>Upload any relevant documents, templates, or diagrams.</FormDescription>
                     <FormMessage />
@@ -517,7 +537,7 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
                       <FormItem>
                         <FormLabel>File Attachment (Optional)</FormLabel>
                         <FormControl>
-                          <FileUpload value={field.value} onChange={field.onChange} />
+                        <FileUpload key={uploadKey} value={field.value} onChange={field.onChange} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -541,9 +561,9 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
           </Card>
 
           <div className="flex justify-end">
-            <Button type="submit" size="lg">
-              Create SOP
-            </Button>
+          <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Creating..." : "Create SOP"}
+          </Button>
           </div>
         </form>
       </Form>

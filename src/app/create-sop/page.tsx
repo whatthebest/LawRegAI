@@ -1,40 +1,48 @@
 // app/create-sop/page.tsx
 import CreateSopForm from "./CreateSopForm";
-import { headers } from "next/headers";
+import { cert, getApps, initializeApp, getApp, type App } from "firebase-admin/app";
+import { getDatabase } from "firebase-admin/database";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const runtime = "nodejs"; // ensure firebase-admin runs on Node, not Edge
 
-/** Build a safe origin for server-side fetch (works locally, Vercel, Firebase, etc.) */
-async function resolveOrigin(): Promise<string> {
-  const h = await headers(); // ← await fixes TS: Promise<ReadonlyHeaders>
-  const proto = h.get("x-forwarded-proto") || "http";
-  const host = h.get("x-forwarded-host") || h.get("host");
-
-  // If there's no host in the request (can happen in some environments), fall back to env or localhost
-  if (!host) {
-    const envUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
-    return envUrl ?? "http://localhost:3000";
-  }
-  return `${proto}://${host}`;
+function getFirebaseAdminApp(): App {
+  if (getApps().length) return getApp();
+  const projectId = process.env.FIREBASE_PROJECT_ID!;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL!;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, "\n");
+  const databaseURL = process.env.FIREBASE_DATABASE_URL!;
+  return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), databaseURL });
 }
 
 async function getNextSopId(): Promise<string> {
   try {
-    const origin = await resolveOrigin(); // ← await the async resolver
-    const res = await fetch(`${origin}/api/sop`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Bad status ${res.status}`);
-    const data = await res.json();
-    return data?.nextSopId ?? "sop-001";
+    const db = getDatabase(getFirebaseAdminApp());
+
+    // read highest sopIndex
+    const highestSnap = await db.ref("sops").orderByChild("sopIndex").limitToLast(1).get();
+    let highest = 0;
+    if (highestSnap.exists()) {
+      highestSnap.forEach((ch) => {
+        const idx = ch.child("sopIndex").val();
+        if (typeof idx === "number" && idx > highest) highest = idx;
+      });
+    }
+
+    // read counter (in case it’s ahead)
+    const counterSnap = await db.ref("meta/sopCounter").get();
+    const counter = typeof counterSnap.val() === "number" ? counterSnap.val() : 0;
+
+    const nextIndex = Math.max(highest, counter) + 1;
+    return `sop-${String(nextIndex).padStart(3, "0")}`;
   } catch (e) {
-    console.warn("[create-sop] getNextSopId failed:", e);
-    return "sop-001"; // last-resort fallback so UI stays usable
+    console.warn("[create-sop] SSR compute failed:", e);
+    return "sop-001";
   }
 }
 
 export default async function Page() {
-  const initialSopId = await getNextSopId(); // compute BEFORE render
+  const initialSopId = await getNextSopId(); // should be sop-002 given your DB screenshot
   return <CreateSopForm initialSopId={initialSopId} />;
 }

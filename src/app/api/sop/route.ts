@@ -1,12 +1,13 @@
 // app/api/sop/route.ts
 import { NextResponse } from "next/server";
-import { cert, getApps, initializeApp, getApp, App } from "firebase-admin/app";
+import { cert, getApps, initializeApp, getApp, type App } from "firebase-admin/app";
 import { getDatabase, type DataSnapshot } from "firebase-admin/database";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+/* ---------- Firebase Admin init (reuse singleton) ---------- */
 function getFirebaseAdminApp(): App {
   if (getApps().length) return getApp();
 
@@ -15,7 +16,7 @@ function getFirebaseAdminApp(): App {
   const pk = process.env.FIREBASE_PRIVATE_KEY!;
   const databaseURL = process.env.FIREBASE_DATABASE_URL!;
 
-  const privateKey = pk.replace(/\\n/g, "\n"); // required for multiline keys
+  const privateKey = pk.replace(/\\n/g, "\n");
 
   return initializeApp({
     credential: cert({ projectId, clientEmail, privateKey }),
@@ -23,117 +24,136 @@ function getFirebaseAdminApp(): App {
   });
 }
 
-/** Read the larger of meta counter or highest existing sopIndex */
-async function computeBaseIndex() {
-  const app = getFirebaseAdminApp();
-  const db = getDatabase(app);
+/* ---------- Helpers ---------- */
+async function getHighestIndex(): Promise<number> {
+  const db = getDatabase(getFirebaseAdminApp());
+  try {
+    const snap = await db.ref("sops").orderByChild("sopIndex").limitToLast(1).get();
+    if (!snap.exists()) return 0;
+    let max = 0;
+    snap.forEach((ch) => {
+      const idx = ch.child("sopIndex").val();
+      if (typeof idx === "number" && idx > max) max = idx;
+    });
+    return max;
+  } catch {
+    return 0;
+  }
+}
 
-  let base = 0;
-
-  // 1) /meta/sopCounter
+async function getCounter(): Promise<number> {
+  const db = getDatabase(getFirebaseAdminApp());
   try {
     const c = await db.ref("meta/sopCounter").get();
-    if (typeof c.val() === "number") base = c.val() as number;
-  } catch (e) {
-    console.warn("[GET /api/sop] counter read failed:", e);
+    return typeof c.val() === "number" ? (c.val() as number) : 0;
+  } catch {
+    return 0;
   }
+}
 
-  // 2) Highest sopIndex under /sops
-  try {
-    const snap = await db
-      .ref("sops")
-      .orderByChild("sopIndex")
-      .limitToLast(1)
-      .get();
+/** Deeply remove values that RTDB cannot store (undefined, NaN) */
+function sanitize(v: any): any {
+  if (v === undefined) return undefined;
+  if (typeof v === "number" && Number.isNaN(v)) return undefined;
 
-    if (snap.exists()) {
-      let max = 0;
-      snap.forEach((ch) => {
-        const idx = ch.child("sopIndex").val();
-        if (typeof idx === "number" && idx > max) max = idx;
-      });
-      if (max > base) base = max;
+  if (Array.isArray(v)) {
+    const arr = v.map(sanitize).filter((x) => x !== undefined);
+    return arr;
+  }
+  if (v && typeof v === "object") {
+    const out: Record<string, any> = {};
+    for (const [k, val] of Object.entries(v)) {
+      const s = sanitize(val);
+      if (s !== undefined) out[k] = s;
     }
-  } catch (e) {
-    console.warn("[GET /api/sop] sops read failed:", e);
+    return out;
   }
-
-  return base;
+  return v;
 }
 
-/** GET: preview the next SOP id. Never throws a 500; falls back to sop-001. */
+/* ---------- GET: preview next = max(counter, highestInDB) + 1 ---------- */
 export async function GET() {
-  try {
-    const base = await computeBaseIndex();
-    const nextIndex = base + 1;
-    const nextSopId = `sop-${String(nextIndex).padStart(3, "0")}`;
-
-    console.log("[GET /api/sop] preview", { base, nextIndex, nextSopId });
-    return NextResponse.json(
-      { nextSopId, nextIndex },
-      { headers: { "Cache-Control": "no-store" } }
-    );
-  } catch (e: any) {
-    console.error("[GET /api/sop] fatal:", e?.message || e);
-    return NextResponse.json(
-      { nextSopId: "sop-001", nextIndex: 1, warning: "fallback-used" },
-      { headers: { "Cache-Control": "no-store" } }
-    );
-  }
+  const [highest, counter] = await Promise.all([getHighestIndex(), getCounter()]);
+  const base = Math.max(highest, counter);
+  const nextIndex = base + 1;
+  const nextSopId = `sop-${String(nextIndex).padStart(3, "0")}`;
+  return NextResponse.json(
+    { nextSopId, nextIndex },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }
 
-/** PUT: sync /meta/sopCounter to the highest sopIndex (optional admin utility) */
-export async function PUT() {
-  const app = getFirebaseAdminApp();
-  const db = getDatabase(app);
-
-  const base = await computeBaseIndex();
-  await db.ref("meta/sopCounter").set(base);
-  console.log("[PUT /api/sop] counter set to", base);
-
-  return NextResponse.json({ sopCounter: base });
-}
-
-/** POST: create SOP using an atomic counter increment */
+/* ---------- POST: concurrency-safe create via counter transaction ---------- */
 export async function POST(req: Request) {
   try {
-    const sopData = await req.json();
-    const app = getFirebaseAdminApp();
-    const db = getDatabase(app);
+    const db = getDatabase(getFirebaseAdminApp());
 
+    // 1) Parse & sanitize incoming payload (strip undefined/NaN)
+    const raw = await req.json();
+    const payload: any = sanitize(raw);
+
+    // 2) Normalize steps (defensive)
+    if (Array.isArray(payload?.steps)) {
+      payload.steps = payload.steps.map((s: any, i: number) => ({
+        stepOrder: typeof s?.stepOrder === "number" ? s.stepOrder : i + 1,
+        title: String(s?.title ?? ""),
+        detail: String(s?.detail ?? ""),
+        stepType: s?.stepType === "Decision" ? "Decision" : "Sequence",
+        sla: typeof s?.sla === "number" ? s.sla : 1,
+        owner: String(s?.owner ?? ""),
+        reviewer: String(s?.reviewer ?? ""),
+        approver: String(s?.approver ?? ""),
+        ...(s?.nextStepYes ? { nextStepYes: String(s.nextStepYes) } : {}),
+        ...(s?.nextStepNo ? { nextStepNo: String(s.nextStepNo) } : {}),
+      }));
+    }
+
+    // 3) Initialize counter from highest if missing/behind; then atomically increment
+    const highest = await getHighestIndex();
     const counterRef = db.ref("meta/sopCounter");
+
     const newIndex: number = await new Promise((resolve, reject) => {
       counterRef.transaction(
-        (cur) => (typeof cur === "number" ? cur : 0) + 1,
+        (cur) => {
+          const base = typeof cur === "number" ? cur : highest;
+          return base + 1;
+        },
         (error: unknown, committed: boolean, snapshot?: DataSnapshot | null) => {
           if (error) return reject(error);
-          if (!committed || !snapshot)
-            return reject(new Error("Counter transaction not committed"));
+          if (!committed || !snapshot) return reject(new Error("Counter transaction not committed"));
           const val = snapshot.val();
-          if (typeof val !== "number")
-            return reject(new Error("Invalid counter value"));
+          if (typeof val !== "number") return reject(new Error("Invalid counter value"));
           resolve(val);
         },
         false
       );
     });
 
+    // 4) Create SOP record
     const sopId = `sop-${String(newIndex).padStart(3, "0")}`;
     const newRef = db.ref("sops").push();
     await newRef.set({
-      ...sopData,
+      ...payload,
       sopId,
       sopIndex: newIndex,
       createdAt: Date.now(),
     });
 
-    console.log("[POST /api/sop] created", { sopId, newIndex, key: newRef.key });
     return NextResponse.json(
       { message: "SOP created successfully", sopId, sopIndex: newIndex, key: newRef.key },
       { status: 201 }
     );
   } catch (error: any) {
-    console.error("[POST /api/sop] failed:", error?.message || error);
-    return NextResponse.json({ error: error?.message || "Create failed" }, { status: 500 });
+    const msg = error?.message || String(error);
+    console.error("[POST /api/sop] failed:", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
+}
+
+/* ---------- PUT: resync counter down to current highest (optional) ---------- */
+export async function PUT() {
+  const db = getDatabase(getFirebaseAdminApp());
+  const highest = await getHighestIndex();
+  await db.ref("meta/sopCounter").set(highest);
+  return NextResponse.json({ sopCounter: highest });
 }
