@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MainLayout from "@/components/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,36 +9,102 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { UserCog, Plus, X } from "lucide-react";
 
-type User = {
-  name: string;
+/** Unions aligned to your Zod schema */
+type Department   = "Operations" | "Engineering" | "HR";
+type SystemRole   = "RegTechTeam" | "Manager" | "User";    // RBAC
+type WorkflowRole = "Owner" | "Reviewer" | "Approver";     // SOP workflow
+
+/** What we display in the table (matches /api/users) */
+type DisplayUser = {
+  id?: string;
+  fullname: string;
   email: string;
-  department: "Operations" | "Engineering" | "HR";
-  role: "Admin" | "RegTechTeam" | "Manager" | "User";
+  department: Department;
+  systemRole: SystemRole;
+  role: WorkflowRole;
 };
 
-const initialUsers: User[] = [
-  { name: "Jane Doe",  email: "jane@company.com",  department: "Operations",  role: "Admin"  },
-  { name: "John Smith",email: "john@company.com",  department: "Engineering", role: "Manager" },
-  { name: "Alice Johnson", email: "alice@company.com", department: "HR", role: "User" },
-];
+/** Form model for creating a user (includes extras) */
+type NewUserForm = {
+  fullname: string;
+  email: string;
+  password: string;
+  department: Department;
+  systemRole: SystemRole;
+  role: WorkflowRole;
+  // optional extras
+  employeeId?: string;
+  contactNumber?: string;
+  cluster?: string;
+  businessUnit?: string;
+  team?: string;
+  managerName?: string;
+  managerEmail?: string;
+  groupTh?: string;
+};
 
 export default function AdminPage() {
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [users, setUsers] = useState<DisplayUser[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // modal state
   const [open, setOpen] = useState(false);
 
-  // form state
-  const [form, setForm] = useState<User>({
-    name: "",
+  // form state (with extras)
+  const [form, setForm] = useState<NewUserForm>({
+    fullname: "",
     email: "",
+    password: "",
     department: "Operations",
-    role: "User",
+    systemRole: "User",
+    role: "Owner",
+    // extras start empty
+    employeeId: "",
+    contactNumber: "",
+    cluster: "",
+    businessUnit: "",
+    team: "",
+    managerName: "",
+    managerEmail: "",
+    groupTh: "",
   });
+
   const [error, setError] = useState<string>("");
 
+  // Load users from API
+  async function loadUsers() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/users", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data);
+      } else {
+        setUsers([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => { loadUsers(); }, []);
+
   const resetForm = () => {
-    setForm({ name: "", email: "", department: "Operations", role: "User" });
+    setForm({
+      fullname: "",
+      email: "",
+      password: "",
+      department: "Operations",
+      systemRole: "User",
+      role: "Owner",
+      employeeId: "",
+      contactNumber: "",
+      cluster: "",
+      businessUnit: "",
+      team: "",
+      managerName: "",
+      managerEmail: "",
+      groupTh: "",
+    });
     setError("");
   };
 
@@ -47,11 +113,36 @@ export default function AdminPage() {
     resetForm();
   };
 
-  const onSubmit = (e: React.FormEvent) => {
+  // Helper: remove empty-string optional fields so Zod optional() passes
+  function buildPayload(f: NewUserForm) {
+    const payload: Record<string, any> = { ...f };
+    const optionalKeys = [
+      "employeeId",
+      "contactNumber",
+      "cluster",
+      "businessUnit",
+      "team",
+      "managerName",
+      "managerEmail",
+      "groupTh",
+    ] as const;
+
+    for (const k of optionalKeys) {
+      const v = payload[k];
+      if (typeof v === "string" && v.trim() === "") {
+        delete payload[k];
+      }
+    }
+    return payload;
+  }
+
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // basic validation
-    if (!form.name.trim() || !form.email.trim()) {
-      setError("Name and Email are required.");
+    setError("");
+  
+    // 1) Client-side validation first
+    if (!form.fullname.trim() || !form.email.trim() || !form.password.trim()) {
+      setError("Full name, Email, and Password are required.");
       return;
     }
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
@@ -59,15 +150,46 @@ export default function AdminPage() {
       setError("Please enter a valid email address.");
       return;
     }
-    const exists = users.some(u => u.email.toLowerCase() === form.email.toLowerCase());
-    if (exists) {
-      setError("This email already exists.");
+    if (form.managerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.managerEmail)) {
+      setError("Manager Email is invalid.");
       return;
     }
-
-    setUsers(prev => [...prev, form]);
-    onClose();
+    if (form.password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+  
+    // 2) Build payload (strip empty optional fields)
+    const payload = buildPayload(form);
+  
+    // 3) Single POST to backend
+    try {
+      const res = await fetch("/api/auth/admin-create-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+  
+      if (!res.ok) {
+        const msg = await res.json().catch(() => ({}));
+        const flat =
+          typeof msg?.error === "string"
+            ? msg.error
+            : msg?.error?.formErrors?.join(", ") ||
+              JSON.stringify(msg?.error) ||
+              "Unknown error";
+        setError(`${msg?.code ?? "error"}: ${flat}`);
+        return;
+      }
+  
+      // 4) Refresh list and close
+      await loadUsers();
+      onClose();
+    } catch {
+      setError("Network error: could not reach /api/auth/admin-create-user.");
+    }
   };
+  
 
   return (
     <MainLayout>
@@ -100,30 +222,39 @@ export default function AdminPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>Full Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>System Role</TableHead>
+                <TableHead>Workflow Role</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.email}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.department}</TableCell>
-                  <TableCell>{user.role}</TableCell>
-                  <TableCell className="text-right">
-                    <Link href={`/admin/edit-user?email=${encodeURIComponent(user.email)}`}>
-                      <Button variant="outline" size="sm">Edit</Button>
-                    </Link>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    Loading…
                   </TableCell>
                 </TableRow>
-              ))}
-              {users.length === 0 && (
+              ) : users.length > 0 ? (
+                users.map((user) => (
+                  <TableRow key={user.email}>
+                    <TableCell className="font-medium">{user.fullname}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.department}</TableCell>
+                    <TableCell>{user.systemRole}</TableCell>
+                    <TableCell>{user.role}</TableCell>
+                    <TableCell className="text-right">
+                      <Link href={`/admin/edit-user?email=${encodeURIComponent(user.email)}`}>
+                        <Button variant="outline" size="sm">Edit</Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     No users yet.
                   </TableCell>
                 </TableRow>
@@ -133,13 +264,13 @@ export default function AdminPage() {
         </CardContent>
       </Card>
 
-      {/* Lightweight modal (no extra deps) */}
+      {/* Modal */}
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           {/* backdrop */}
           <div className="absolute inset-0 bg-black/50" onClick={onClose} />
           {/* dialog */}
-          <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+          <div className="relative z-10 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Add User</h2>
               <button
@@ -151,64 +282,101 @@ export default function AdminPage() {
               </button>
             </div>
 
-            <form onSubmit={onSubmit} className="space-y-4">
+            <form onSubmit={onSubmit} className="space-y-6">
               {error && (
                 <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2 text-sm">
                   {error}
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-4">
+              {/* Core fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <label className="text-sm font-medium">Name</label>
-                  <Input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Full name"
-                    required
-                  />
+                  <label className="text-sm font-medium">Full Name</label>
+                  <Input value={form.fullname} onChange={(e) => setForm({ ...form, fullname: e.target.value })} required />
                 </div>
-
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Email</label>
-                  <Input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="name@company.com"
-                    required
-                  />
+                  <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
                 </div>
-
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Password</label>
+                  <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Temporary password" required />
+                </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Department</label>
                   <select
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                     value={form.department}
-                    onChange={(e) =>
-                      setForm({ ...form, department: e.target.value as User["department"] })
-                    }
+                    onChange={(e) => setForm({ ...form, department: e.target.value as Department })}
                   >
                     <option value="Operations">Operations</option>
                     <option value="Engineering">Engineering</option>
                     <option value="HR">HR</option>
                   </select>
                 </div>
-
                 <div className="grid gap-2">
-                  <label className="text-sm font-medium">Role</label>
+                  <label className="text-sm font-medium">System Role</label>
                   <select
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={form.role}
-                    onChange={(e) =>
-                      setForm({ ...form, role: e.target.value as User["role"] })
-                    }
+                    value={form.systemRole}
+                    onChange={(e) => setForm({ ...form, systemRole: e.target.value as SystemRole })}
                   >
                     <option value="User">User</option>
                     <option value="Manager">Manager</option>
                     <option value="RegTechTeam">RegTechTeam</option>
-                    <option value="Admin">Admin</option>
                   </select>
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Workflow Role</label>
+                  <select
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={form.role}
+                    onChange={(e) => setForm({ ...form, role: e.target.value as WorkflowRole })}
+                  >
+                    <option value="Owner">Owner</option>
+                    <option value="Reviewer">Reviewer</option>
+                    <option value="Approver">Approver</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Additional Details (optional extras) */}
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-3">Additional Details (optional)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Employee ID</label>
+                    <Input value={form.employeeId ?? ""} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Contact Number</label>
+                    <Input type="tel" value={form.contactNumber ?? ""} onChange={(e) => setForm({ ...form, contactNumber: e.target.value })} placeholder="e.g., 0912345678" />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Cluster</label>
+                    <Input value={form.cluster ?? ""} onChange={(e) => setForm({ ...form, cluster: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Business Unit</label>
+                    <Input value={form.businessUnit ?? ""} onChange={(e) => setForm({ ...form, businessUnit: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Team</label>
+                    <Input value={form.team ?? ""} onChange={(e) => setForm({ ...form, team: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Manager Name</label>
+                    <Input value={form.managerName ?? ""} onChange={(e) => setForm({ ...form, managerName: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Manager Email</label>
+                    <Input type="email" value={form.managerEmail ?? ""} onChange={(e) => setForm({ ...form, managerEmail: e.target.value })} placeholder="manager@company.com" />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">กลุ่ม (groupTh)</label>
+                    <Input value={form.groupTh ?? ""} onChange={(e) => setForm({ ...form, groupTh: e.target.value })} />
+                  </div>
                 </div>
               </div>
 
