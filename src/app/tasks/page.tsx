@@ -87,12 +87,12 @@ export default function TasksPage() {
     <MainLayout>
       <div className="flex justify-between items-start gap-4 mb-8 flex-wrap">
         <div className="space-y-2">
-            <h1 className="text-4xl font-bold text-primary">Work Tracker</h1>
+            <h1 className="text-4xl font-bold text-primary">Project Tracker</h1>
             <p className="text-lg text-muted-foreground">Create and manage your projects, and track your assigned SOP tasks.</p>
         </div>
         <Dialog open={isCreateWorkOpen} onOpenChange={setCreateWorkOpen}>
           <DialogTrigger asChild>
-            <Button className='gap-2'><PlusCircle className='w-4 h-4'/> Create Work</Button>
+            <Button className='gap-2'><PlusCircle className='w-4 h-4'/> Create Project</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
@@ -103,11 +103,11 @@ export default function TasksPage() {
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="work-name" className="text-right">Work Name</Label>
+                <Label htmlFor="work-name" className="text-right">Project Name</Label>
                 <Input id="work-name" placeholder="e.g., Q3 Marketing Campaign" className="col-span-3" />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="work-detail" className="text-right">Work Detail</Label>
+                <Label htmlFor="work-detail" className="text-right">Project Detail</Label>
                 <Textarea id="work-detail" placeholder="Describe the goals and context of this work." className="col-span-3" />
               </div>
                <div className="grid grid-cols-4 items-center gap-4">
@@ -136,16 +136,17 @@ export default function TasksPage() {
                 </div>
             )}
             <div className="flex justify-end pt-4">
-                <Button onClick={() => setCreateWorkOpen(false)}>Save Work Item</Button>
+                <Button onClick={() => setCreateWorkOpen(false)}>Save Project Item</Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
       
       <Tabs defaultValue="projects" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="projects" className="gap-2"><FolderKanban className="w-4 h-4"/> Project List</TabsTrigger>
             <TabsTrigger value="tasks" className="gap-2"><Briefcase className="w-4 h-4" /> My Tasks</TabsTrigger>
+            <TabsTrigger value="Timeline" className="gap-2"><Briefcase className="w-4 h-4" /> Timeline</TabsTrigger>
         </TabsList>
         <TabsContent value="projects">
             <Card>
@@ -197,6 +198,41 @@ export default function TasksPage() {
                     <TaskList tasks={completedTasks} emptyMessage="You have not completed any steps yet." />
                 </TabsContent>
             </Tabs>
+        </TabsContent>
+        <TabsContent value="Timeline">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Project Timeline</CardTitle>
+                    <CardDescription>Overview of project milestones and deadlines.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ol className="relative border-l border-gray-200">
+                    <li className="mb-10 ml-6">
+                      <span className="absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 ring-8 ring-white">
+                        🚀
+                      </span>
+                      <h3 className="font-medium leading-tight">Project Kickoff</h3>
+                      <p className="text-sm text-muted-foreground">January 2025</p>
+                    </li>
+
+                    <li className="mb-10 ml-6">
+                      <span className="absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full bg-green-100 ring-8 ring-white">
+                        ✅
+                      </span>
+                      <h3 className="font-medium leading-tight">Prototype Completed</h3>
+                      <p className="text-sm text-muted-foreground">February 2025</p>
+                    </li>
+
+                    <li className="ml-6">
+                      <span className="absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full bg-purple-100 ring-8 ring-white">
+                        📅
+                      </span>
+                      <h3 className="font-medium leading-tight">Launch</h3>
+                      <p className="text-sm text-muted-foreground">March 2025</p>
+                    </li>
+                  </ol>
+                </CardContent>
+            </Card>
         </TabsContent>
       </Tabs>
     </MainLayout>
