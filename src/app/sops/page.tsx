@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,8 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Search, FilePlus2, Check, X, List, UserCheck } from 'lucide-react';
-import { mockSops, sopDepartments, sopStatuses } from '@/lib/mockData';
+import { sopDepartments, sopStatuses } from '@/lib/mockData';
 import type { SOP, SOPDepartment, SOPStatus } from '@/lib/types';
+import { initializeApp, getApps } from 'firebase/app';
+import { getDatabase, ref, onValue, query, orderByChild, equalTo, get, update } from 'firebase/database';
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -31,8 +33,92 @@ const getStatusVariant = (status: SOPStatus) => {
   }
 };
 
+// --- Firebase client init (client-side) ---
+const app = getApps().length
+  ? getApps()[0]
+  : initializeApp({
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+      databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL!,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    });
+const db = getDatabase(app);
+
+type RtdbSop = {
+  sopId?: string;
+  title?: string;
+  department?: string;
+  description?: string;
+  createdAt?: number | string;
+  sopIndex?: number;
+  cluster?: string;
+  group?: string;
+  section?: string;
+  responsiblePerson?: string;
+  sla?: number;
+  steps?: any;
+};
+
+function useSopsRTDB() {
+  const [sops, setSops] = useState<any[] | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    // Reads: /sops ordered by createdAt (per your schema)
+    const qref = query(ref(db, 'sops'), orderByChild('createdAt'));
+    const unsub = onValue(
+      qref,
+      (snap) => {
+        const raw = snap.val() as Record<string, RtdbSop> | null;
+        if (!raw) { setSops([]); return; }
+
+        const list = Object.entries(raw).map(([key, v]) => {
+          const stepsRaw = v.steps ?? [];
+          const steps = Array.isArray(stepsRaw) ? stepsRaw.filter(Boolean) : Object.values(stepsRaw);
+
+          return {
+            id: v.sopId ?? key,
+            sopId: v.sopId ?? key,
+            title: v.title ?? v.description ?? v.sopId ?? key,
+            department: v.department ?? 'General',
+            status: (v as any).status ?? 'Draft', // replace if you add a real status field
+            description: v.description ?? '',
+            createdAt: v.createdAt ?? null,
+            sopIndex: v.sopIndex ?? null,
+            cluster: v.cluster ?? '',
+            group: v.group ?? '',
+            section: v.section ?? '',
+            responsiblePerson: v.responsiblePerson ?? '',
+            sla: v.sla ?? null,
+            steps,
+            ...v,
+          };
+        });
+
+        // newest first if createdAt numeric
+        list.sort((a, b) => {
+          const A = typeof a.createdAt === 'number' ? a.createdAt : 0;
+          const B = typeof b.createdAt === 'number' ? b.createdAt : 0;
+          return B - A;
+        });
+
+        setSops(list);
+      },
+      (e) => setError(e)
+    );
+
+    return () => unsub();
+  }, []);
+
+  return { sops, isLoading: sops === null, error };
+}
+
+
 export default function SopsListPage() {
-  const [sops, setSops] = useState<SOP[]>(mockSops);
+    const { sops, isLoading, error } = useSopsRTDB();
   const [departmentFilter, setDepartmentFilter] = useState<SOPDepartment | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<SOPStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,15 +126,29 @@ export default function SopsListPage() {
 
 
   const filteredSops = useMemo(() => {
-    return sops
+         const list = (sops ?? []) as any[];
+         return list
       .filter(sop => departmentFilter === 'all' || sop.department === departmentFilter)
       .filter(sop => statusFilter === 'all' || sop.status === statusFilter)
       .filter(sop => sop.title.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [sops, departmentFilter, statusFilter, searchTerm]);
 
-  const handleApproval = (sopId: string, newStatus: 'Approved' | 'Draft') => {
+  const handleApproval = async (sopId: string, newStatus: 'Approved' | 'Draft') => {
     const action = newStatus === 'Approved' ? 'approved' : 'rejected';
-    setSops(prevSops => prevSops.map(sop => sop.id === sopId ? { ...sop, status: newStatus } : sop));
+  
+    // Find the push key under /sops by sopId
+    const qref = query(ref(db, 'sops'), orderByChild('sopId'), equalTo(sopId));
+    const snap = await get(qref);
+  
+    if (!snap.exists()) {
+      toast({ title: 'Not found', description: `SOP ${sopId} not found.` });
+      return;
+    }
+  
+    // Update the first match; if you can have duplicates, iterate keys
+    const pushKey = Object.keys(snap.val())[0];
+    await update(ref(db, `sops/${pushKey}`), { status: newStatus });
+  
     toast({
       title: `SOP ${action}`,
       description: `The SOP has been successfully ${action}.`,
@@ -111,7 +211,8 @@ export default function SopsListPage() {
                     </div>
                 </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent> {isLoading && (<p className="text-center text-muted-foreground py-12">Loading SOPs…</p>)}
+                {error && (<p className="text-center text-red-600 py-12">Failed to load SOPs: {error.message}</p>)}
                 <Table>
                     <TableHeader>
                     <TableRow>
@@ -133,7 +234,7 @@ export default function SopsListPage() {
                             <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                            <Link href={`/sops/${sop.id}`} passHref>
+                            <Link href={`/sops/${sop.sopId}`} passHref>
                                 <Button variant="ghost" size="sm" className='gap-1'>
                                 View
                                 <ArrowRight className="h-4 w-4" />
@@ -162,7 +263,7 @@ export default function SopsListPage() {
                 </CardHeader>
                 <CardContent>
                     <Accordion type="multiple" className="w-full space-y-4">
-                        {sops.filter(sop => sop.status === 'In Review').map(sop => (
+                        {(sops ?? []).filter(sop => sop.status === 'In Review').map(sop => (
                             <AccordionItem value={sop.id} key={sop.id} className="border-b-0">
                                 <Card className="shadow-md">
                                     <AccordionTrigger className="p-6 text-left hover:no-underline">
@@ -193,10 +294,10 @@ export default function SopsListPage() {
                                                 <h4 className="font-semibold">Manager Action</h4>
                                                 <Textarea placeholder="Add comments for the creator (optional)..." />
                                                 <div className="flex gap-4">
-                                                    <Button onClick={() => handleApproval(sop.id, 'Approved')} className="gap-2 bg-green-600 hover:bg-green-700">
+                                                    <Button onClick={() => handleApproval(sop.sopId, 'Approved')} className="gap-2 bg-green-600 hover:bg-green-700">
                                                         <Check className="w-4 h-4" /> Approve
                                                     </Button>
-                                                    <Button onClick={() => handleApproval(sop.id, 'Draft')} variant="destructive" className="gap-2">
+                                                    <Button onClick={() => handleApproval(sop.sopId, 'Draft')} variant="destructive" className="gap-2">
                                                         <X className="w-4 h-4" /> Reject
                                                     </Button>
                                                 </div>
@@ -207,7 +308,7 @@ export default function SopsListPage() {
                             </AccordionItem>
                         ))}
                     </Accordion>
-                     {sops.filter(sop => sop.status === 'In Review').length === 0 && (
+                     {(sops ?? []).filter(sop => sop.status === 'In Review').length === 0 && (
                         <p className="text-center text-muted-foreground py-12">There are no SOPs awaiting review.</p>
                     )}
                 </CardContent>
