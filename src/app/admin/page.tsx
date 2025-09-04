@@ -136,35 +136,47 @@ export default function AdminPage() {
     return payload;
   }
 
+  function stripEmpty<T extends Record<string, any>>(obj: T) {
+    const out: any = { ...obj };
+    [
+      "employeeId","contactNumber","cluster","businessUnit",
+      "team","managerName","managerEmail","groupTh",
+    ].forEach(k => {
+      if (typeof out[k] === "string" && out[k].trim() === "") delete out[k];
+    });
+    return out;
+  }
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
   
-    // 1) Client-side validation first
-    if (!form.fullname.trim() || !form.email.trim() || !form.password.trim()) {
-      setError("Full name, Email, and Password are required.");
-      return;
-    }
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
-    if (!emailOk) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-    if (form.managerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.managerEmail)) {
-      setError("Manager Email is invalid.");
-      return;
-    }
-    if (form.password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    // (optional) minimal client checks
+    if (!form.fullname.trim() || !form.email.trim()) {
+      setError("Full name and Email are required.");
       return;
     }
   
-    // 2) Build payload (strip empty optional fields)
-    const payload = buildPayload(form);
+    // Build payload for /api/users
+    const payload = stripEmpty({
+      fullname: form.fullname,
+      email: form.email,
+      password: form.password,            // include ONLY if you want Auth account created
+      department: form.department,
+      systemRole: form.systemRole,
+      role: form.role,
+      employeeId: form.employeeId || undefined,
+      contactNumber: form.contactNumber || undefined,
+      cluster: form.cluster || undefined,
+      businessUnit: form.businessUnit || undefined,
+      team: form.team || undefined,
+      managerName: form.managerName || undefined,
+      managerEmail: form.managerEmail || undefined,
+      groupTh: form.groupTh || undefined,
+    });
   
-    // 3) Single POST to backend
     try {
-      const res = await fetch("/api/auth/admin-create-user", {
+      const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -172,21 +184,28 @@ export default function AdminPage() {
   
       if (!res.ok) {
         const msg = await res.json().catch(() => ({}));
-        const flat =
+        const errText =
           typeof msg?.error === "string"
             ? msg.error
-            : msg?.error?.formErrors?.join(", ") ||
-              JSON.stringify(msg?.error) ||
-              "Unknown error";
-        setError(`${msg?.code ?? "error"}: ${flat}`);
+            : msg?.error?.formErrors?.join(", ") || "Failed to create user.";
+        // 401/403 = not authenticated/authorized
+        if (res.status === 401) {
+          setError("Unauthenticated. Please log in.");
+          return;
+        }
+        if (res.status === 403) {
+          setError("You do not have permission to create users.");
+          return;
+        }
+        setError(errText);
         return;
       }
   
-      // 4) Refresh list and close
+      // refresh table and close modal
       await loadUsers();
       onClose();
-    } catch {
-      setError("Network error: could not reach /api/auth/admin-create-user.");
+    } catch (err) {
+      setError("Network error. Please try again.");
     }
   };
   
@@ -246,7 +265,7 @@ export default function AdminPage() {
                     <TableCell>{user.systemRole}</TableCell>
                     <TableCell>{user.role}</TableCell>
                     <TableCell className="text-right">
-                      <Link href={`/admin/edit-user?email=${encodeURIComponent(user.email)}`}>
+                      <Link href={`/admin/edit-user/${user.id}`}>
                         <Button variant="outline" size="sm">Edit</Button>
                       </Link>
                     </TableCell>
