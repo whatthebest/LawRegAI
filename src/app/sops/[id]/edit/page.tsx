@@ -318,7 +318,7 @@ export default function EditSopPage() {
                         <FormItem><FormLabel>Reviewer</FormLabel><FormControl><Input placeholder="reviewer@company.com" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name={`steps.${index}.approver`} render={({ field }) => (
-                        <FormItem><FormLabel>Approver</FormLabel><FormControl><Input placeholder="approver@company.com" {...field} /></FormControl><FormMessage /></FormMessage /></FormItem>
+                        <FormItem><FormLabel>Approver</FormLabel><FormControl><Input placeholder="approver@company.com" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                     </div>
                   </div>
