@@ -29,10 +29,10 @@ import {
 } from "lucide-react";
 
 const navLinks = [
-  { href: "/", label: "Dashboard", icon: LayoutGrid },
+  { href: "/", label: "Overview", icon: LayoutGrid },
   { href: "/create-sop", label: "Create SOP", icon: FilePlus2 },
   { href: "/sops", label: "View SOPs", icon: ListChecks },
-  { href: "/tasks", label: "Work Tracker", icon: CheckSquare },
+  { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
   { href: "/admin", label: "Admin", icon: UserCog },
 ];
 
@@ -58,8 +58,8 @@ export default function AppSidebar() {
           href="/"
           className="flex items-center gap-2 font-bold text-lg group-data-[collapsible=icon]:hidden"
         >
-          <Bot className="h-6 w-6 text-primary" />
-          <span>SOP Central</span>
+          <Bot className="h-20 w-20 text-primary" />
+          <span>Compliance Standard Assurance</span>
         </Link>
       </SidebarHeader>
 

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Bot, LogIn } from "lucide-react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { InteractiveHoverButton } from "@/components/magicui/interactive-hover-button";
 
 export default function LoginPage() {
   const { user, login, isLoading } = useAuth();
@@ -48,10 +49,9 @@ export default function LoginPage() {
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" defaultValue="password" />
             </div>
-            <Button type="submit" className="w-full mt-2 gap-2">
-              <LogIn className="h-4 w-4" />
-              Sign In
-            </Button>
+            <InteractiveHoverButton type="submit" className="h-8 w-30 flex items-center gap-2 ">
+              Log In
+            </InteractiveHoverButton>
           </form>
         </CardContent>
       </Card>
