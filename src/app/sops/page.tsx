@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Search, FilePlus2, Check, X, List, UserCheck } from 'lucide-react';
+import { ArrowRight, Search, FilePlus2, Check, X, List, UserCheck, Workflow } from 'lucide-react';
 import { sopDepartments, sopStatuses, mockSops } from '@/lib/mockData';
 import type { SOP, SOPDepartment, SOPStatus } from '@/lib/types';
 import { format } from 'date-fns';
@@ -20,6 +20,14 @@ import { SopTimeline } from '@/components/SopTimeline';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
 
 const getStatusVariant = (status: SOPStatus) => {
   switch (status) {
@@ -137,7 +145,26 @@ export default function SopsListPage() {
                     {filteredSops.length > 0 ? (
                         filteredSops.map(sop => (
                         <TableRow key={sop.id}>
-                            <TableCell className="font-medium">{sop.title}</TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                      <Workflow className="w-4 h-4 text-muted-foreground" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="sm:max-w-2xl">
+                                    <DialogHeader>
+                                      <DialogTitle>Timeline Preview: {sop.title}</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="max-h-[70vh] overflow-y-auto p-4">
+                                      <SopTimeline steps={sop.steps} />
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                                <span>{sop.title}</span>
+                              </div>
+                            </TableCell>
                             <TableCell>{sop.department}</TableCell>
                             <TableCell>{format(new Date(sop.createdAt), 'MMMM d, yyyy')}</TableCell>
                             <TableCell>
