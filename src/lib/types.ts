@@ -4,11 +4,35 @@ export interface User {
   department: string;
 }
 
-export type SOPStatus = 'Draft' | 'In Review' | 'Approved' | 'Archived';
-export type SOPStepStatus = 'Draft' | 'Review' | 'Approved';
-export type SOPDepartment = 'Operations' | 'Engineering' | 'HR' | 'Marketing';
-export type SOPStepType = 'Sequence' | 'Decision';
+// ----- SOP Definitions -----
 
+export type SOPStatus = 'Draft' | 'In Review' | 'Approved' | 'Archived';
+export type SOPDepartment = 'Operations' | 'Engineering' | 'HR' | 'Marketing' | 'Customer Support' | 'IT';
+
+export interface SOP {
+  id: string; // The unique ID for the object (e.g., sop-001)
+  sopId: string; // The human-readable ID (e.g., SOP-001)
+  title: string;
+  description: string;
+  department: SOPDepartment;
+  cluster?: string;
+  group?: string;
+  section?: string;
+  responsiblePerson: string; // Corresponds to the form field for submission
+  owner: string; // The official owner, for display
+  version: string;
+  sla: number; // in days
+  createdAt: string; // ISO date string
+  updatedAt: string; // ISO date string
+  status: SOPStatus;
+  attachments: any[]; // Using 'any' for simplicity with FileUpload component
+  steps: SOPStep[];
+}
+
+// ----- SOP Step Definitions -----
+
+export type SOPStepStatus = 'Pending' | 'In Progress' | 'Review' | 'Approved' | 'Rejected';
+export type SOPStepType = 'Sequence' | 'Decision';
 
 export interface SOPStep {
   id: string;
@@ -16,29 +40,17 @@ export interface SOPStep {
   title: string;
   detail: string;
   stepType: SOPStepType;
-  nextStepYes?: string;
-  nextStepNo?: string;
+  nextStepYes?: string; // Optional, for Decision steps
+  nextStepNo?: string;  // Optional, for Decision steps
   sla: number; // in days
   owner: string; // user email
   reviewer: string;
   approver: string;
-  status: SOPStepStatus;
+  status: SOPStepStatus; // Display status for the step
+  attachments: any[];
 }
 
-export interface SOP {
-  id: string;
-  title: string;
-  description: string;
-  department: SOPDepartment;
-  cluster?: string;
-  group?: string;
-  section?: string;
-  responsiblePerson: string; // user email
-  sla: number; // in days
-  createdAt: string; // ISO date string
-  status: SOPStatus;
-  steps: SOPStep[];
-}
+// ----- Project Definitions (Restored) -----
 
 export type ProjectStatus = 'Planning' | 'In Progress' | 'Completed';
 
@@ -47,5 +59,5 @@ export interface Project {
     name: string;
     description: string;
     status: ProjectStatus;
-    sop: string;
+    sop: string; // Corresponds to an SOP ID
 }

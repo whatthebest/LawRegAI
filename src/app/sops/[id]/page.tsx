@@ -1,4 +1,6 @@
 
+"use client";
+
 import { notFound } from 'next/navigation';
 import MainLayout from '@/components/MainLayout';
 import { SopTimeline } from '@/components/SopTimeline';
@@ -12,8 +14,11 @@ import { format } from 'date-fns';
 import { Check, MessageSquare, Share2, FileDown, Edit } from 'lucide-react';
 import Link from 'next/link';
 
-const getSop = (id: string) => {
-  return mockSops.find(sop => sop.id === id);
+// Helper to find the SOP from mock data
+const getSop = (id: string): SOP | undefined => {
+  // Note: The link from the list page uses sop.sopId, but the mock data uses 'id'.
+  // We'll check against both for robustness.
+  return mockSops.find(sop => sop.id === id || sop.sopId === id);
 };
 
 const getStatusVariant = (status: SOPStatus) => {
@@ -29,91 +34,105 @@ const getStatusVariant = (status: SOPStatus) => {
 export default function SopDetailPage({ params }: { params: { id: string } }) {
   const sop = getSop(params.id);
 
+  // If no SOP is found for the given ID, show a 404 page.
   if (!sop) {
     notFound();
   }
 
   return (
     <MainLayout>
-        <div className="flex justify-between items-start gap-4 mb-8 flex-wrap">
-            <div className="space-y-2 max-w-4xl">
+      <div className="space-y-4">
+        <div className="flex justify-between items-start gap-4">
+            <div className="space-y-2">
                 <Link href="/sops" className="text-sm text-primary hover:underline">
-                    &larr; Back to all SOPs
+                    &larr; Back to SOP Repository
                 </Link>
-                <div className="flex items-center gap-4">
-                    <h1 className="text-4xl font-bold text-primary">{sop.title}</h1>
-                    <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
+                <h1 className="text-4xl font-bold text-primary">{sop.title}</h1>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>Department: {sop.department}</span>
+                    <Separator orientation="vertical" className="h-4" />
+                    <span>Created on: {format(new Date(sop.createdAt), 'MMMM d, yyyy')}</span>
                 </div>
-                <p className="text-lg text-muted-foreground">{sop.description}</p>
+            </div>
+            <div className="flex items-center gap-2">
+                <Link href={`/sops/${params.id}/edit`} passHref>
+                  <Button variant="outline"><Edit className="w-4 h-4 mr-2" /> Edit</Button>
+                </Link>
+                <Button variant="outline"><Share2 className="w-4 h-4 mr-2" /> Share</Button>
+                <Button variant="outline"><FileDown className="w-4 h-4 mr-2" /> Export</Button>
             </div>
         </div>
 
+        <Separator />
+
         <div className="grid md:grid-cols-3 gap-8">
-            <div className="md:col-span-2 space-y-8">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>SOP Timeline</CardTitle>
-                        <CardDescription>Follow the procedure step-by-step.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                       <SopTimeline steps={sop.steps} />
-                    </CardContent>
-                </Card>
-            </div>
-            <div className="space-y-6 md:col-span-1">
-                <Card className="sticky top-24">
-                    <CardHeader>
-                        <CardTitle>Details</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 text-sm">
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">SOP ID:</span>
-                            <span className="font-medium">{sop.id}</span>
-                        </div>
-                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Status:</span>
-                            <span className="font-medium">{sop.status}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Department:</span>
-                            <span className="font-medium">{sop.department}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Cluster:</span>
-                            <span className="font-medium">{sop.cluster || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Group:</span>
-                            <span className="font-medium">{sop.group || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Section:</span>
-                            <span className="font-medium">{sop.section || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Created:</span>
-                            <span className="font-medium">{format(new Date(sop.createdAt), 'MMM d, yyyy')}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Responsible:</span>
-                            <span className="font-medium">{sop.responsiblePerson}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Overall SLA:</span>
-                            <span className="font-medium">{sop.sla} day{sop.sla !== 1 ? 's' : ''}</span>
-                        </div>
-                        <Separator className="my-4" />
-                        <div className="flex flex-col gap-2">
-                           <Link href={`/sops/${sop.id}/edit`} passHref>
-                             <Button variant="outline" className='gap-2 w-full'><Edit className='w-4 h-4' /> Edit SOP</Button>
-                           </Link>
-                           <Button variant="outline" className='gap-2 w-full'><FileDown className='w-4 h-4' /> Export as PDF</Button>
-                           <Button variant="outline" className='gap-2 w-full'><Share2 className='w-4 h-4' /> Share</Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+          {/* Main Content */}
+          <div className="md:col-span-2 space-y-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>SOP Timeline</CardTitle>
+                <CardDescription>Step-by-step process and responsible parties.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SopTimeline steps={sop.steps} />
+              </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Details & Attachments</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">
+                        {/* Placeholder for additional details or attachments */}
+                        No additional details for this SOP.
+                    </p>
+                </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Sidebar */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Status</CardTitle>
+                <Check className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                    <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground pt-1">
+                  Last updated on {format(new Date(sop.updatedAt), 'MMM d, yyyy')}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Metadata</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="font-semibold">SOP ID:</span> <span>{sop.sopId}</span></div>
+                    <div className="flex justify-between"><span className="font-semibold">Version:</span> <span>{sop.version}</span></div>
+                    <div className="flex justify-between"><span className="font-semibold">Owner:</span> <span>{sop.owner}</span></div>
+                </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Comments</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-center text-center text-muted-foreground py-4">
+                    <p><MessageSquare className="w-6 h-6 mx-auto mb-2" /> No comments yet.</p>
+                </div>
+              </CardContent>
+            </Card>
+
+          </div>
         </div>
+      </div>
     </MainLayout>
   );
 }
