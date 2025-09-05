@@ -33,7 +33,7 @@ const sopStepSchema = z.object({
   owner: z.string().email("Owner must be a valid email."),
   reviewer: z.string().email("Reviewer must be a valid email."),
   approver: z.string().email("Approver must be a valid email."),
-  status: z.enum(['Draft', 'Review', 'Approved']),
+  status: z.enum(['Draft', 'Review', 'Approved', 'Pending', 'In Progress', 'Rejected']),
   attachments: z.array(z.instanceof(File)).optional(),
 });
 
@@ -41,7 +41,7 @@ const sopFormSchema = z.object({
   sopId: z.string(),
   title: z.string().min(5, "SOP title must be at least 5 characters."),
   description: z.string().min(20, "Description must be at least 20 characters."),
-  department: z.enum(["Operations", "Engineering", "HR", "Marketing"]),
+  department: z.enum(["Operations", "Engineering", "HR", "Marketing", "Customer Support", "IT"]),
   cluster: z.string().optional(),
   group: z.string().optional(),
   section: z.string().optional(),
@@ -85,10 +85,10 @@ export default function EditSopPage() {
 
   useEffect(() => {
     if (sopIdToEdit) {
-      const sopToEdit = mockSops.find(sop => sop.id === sopIdToEdit);
+      const sopToEdit = mockSops.find(sop => sop.id === sopIdToEdit || sop.sopId === sopIdToEdit);
       if (sopToEdit) {
         form.reset({
-          sopId: sopToEdit.id,
+          sopId: sopToEdit.sopId,
           title: sopToEdit.title,
           description: sopToEdit.description,
           department: sopToEdit.department,
@@ -161,7 +161,7 @@ export default function EditSopPage() {
                  <FormField control={form.control} name="sopId" render={({ field }) => (
                   <FormItem>
                     <FormLabel>SOP ID</FormLabel>
-                    <FormControl><Input {...field} disabled /></FormControl>
+                    <FormControl><Input {...field} readOnly /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -209,7 +209,7 @@ export default function EditSopPage() {
               <div className="grid md:grid-cols-3 gap-6">
                 <FormItem>
                   <FormLabel>Date Created</FormLabel>
-                  <FormControl><Input value={dateCreated} disabled /></FormControl>
+                  <FormControl><Input value={dateCreated} readOnly /></FormControl>
                 </FormItem>
                 <FormField control={form.control} name="responsiblePerson" render={({ field }) => (
                   <FormItem>
@@ -318,7 +318,7 @@ export default function EditSopPage() {
                         <FormItem><FormLabel>Reviewer</FormLabel><FormControl><Input placeholder="reviewer@company.com" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name={`steps.${index}.approver`} render={({ field }) => (
-                        <FormItem><FormLabel>Approver</FormLabel><FormControl><Input placeholder="approver@company.com" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Approver</FormLabel><FormControl><Input placeholder="approver@company.com" {...field} /></FormControl><FormMessage /></FormMessage /></FormItem>
                       )} />
                     </div>
                   </div>
