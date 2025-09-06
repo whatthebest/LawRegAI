@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { mockSops, mockProjects } from "@/lib/mockData";
-import { Edit, User, Clock, Shield, CheckCircle2 } from "lucide-react";
+import { Edit, User, Clock, Shield, CheckCircle2, BadgeCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -43,39 +43,64 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { SOPStep, SOPStepStatus } from "@/lib/types";
+
+// ---------- เพิ่มสถานะภายใน (ขยายจากของเดิม) ----------
+type ExtraStatus = "ReadyToApprove" | "ApprovedFinal";
+type AnyStatus = SOPStepStatus | ExtraStatus; // Draft, Approved, Review + ใหม่
 
 // ---------- Types (เอกสารแนบต่อ task) ----------
 type FileDoc = { id: string; name: string; size: number; url: string };
-type TaskWithDocs = SOPStep & { documents?: FileDoc[] };
+type TaskWithDocs = SOPStep & { status: AnyStatus; documents?: FileDoc[] };
 
+// ---------- Utilities ----------
 const getStatusBadgeVariant = (
-  status: SOPStepStatus
+  status: AnyStatus
 ): VariantProps<typeof badgeVariants>["variant"] => {
   switch (status) {
-    case "Review":
-      return "warning";
-    case "Approved":
-      return "default";
     case "Draft":
+      return "destructive"; // Not Started
+    case "Approved":
+      return "secondary"; // In Progress (legacy key butเราใช้เป็น "In Progress")
+    case "Review":
+      return "warning"; // Ready to Review
+    case "ReadyToApprove":
+      return "outline"; // Ready to Approve
+    case "ApprovedFinal":
+      return "default"; // Approved (final)
     default:
-      return "destructive";
+      return "secondary";
   }
 };
 
-const getStatusBadgeText = (status: SOPStepStatus): string => {
+const getStatusBadgeText = (status: AnyStatus): string => {
   switch (status) {
-    case "Review":
-      return "Pending Review";
-    case "Approved":
-      return "In Progress";
     case "Draft":
       return "Not Started";
+    case "Approved":
+      return "In Progress";
+    case "Review":
+      return "Ready to Review";
+    case "ReadyToApprove":
+      return "Ready to Approve";
+    case "ApprovedFinal":
+      return "Approved";
     default:
       return "Pending";
   }
 };
 
+// ---------- Form ----------
 interface ProjectFormValues {
   name: string;
   description: string;
@@ -94,9 +119,12 @@ export default function ProjectDetailPage() {
   const [sop, setSop] = useState(() =>
     mockSops.find((s) => s.id === project?.sop)
   );
-  const [tasks, setTasks] = useState<TaskWithDocs[]>([]); // รองรับ documents
-
+  const [tasks, setTasks] = useState<TaskWithDocs[]>([]);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
+
+  // Finish project modal + animation
+  const [isFinishOpen, setIsFinishOpen] = useState(false);
+  const [showDoneAnim, setShowDoneAnim] = useState(false);
 
   const {
     control,
@@ -115,7 +143,7 @@ export default function ProjectDetailPage() {
     },
   });
 
-  // ตั้งค่า form + แปลง SOP steps -> tasks (เติม documents: [])
+  // ตั้งค่า form + steps -> tasks
   useEffect(() => {
     if (project) {
       resetProject({
@@ -130,7 +158,7 @@ export default function ProjectDetailPage() {
       setTasks(
         sop.steps.map((step) => ({
           ...step,
-          status: step.status || "Draft",
+          status: (step.status as AnyStatus) || "Draft",
           documents: [],
         }))
       );
@@ -141,7 +169,7 @@ export default function ProjectDetailPage() {
     notFound();
   }
 
-  const handleStatusChange = (taskId: string, newStatus: SOPStepStatus) => {
+  const handleStatusChange = (taskId: string, newStatus: AnyStatus) => {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
@@ -158,7 +186,7 @@ export default function ProjectDetailPage() {
       setTasks(
         updatedSop.steps.map((step) => ({
           ...step,
-          status: step.status || "Draft",
+          status: (step.status as AnyStatus) || "Draft",
           documents: [],
         }))
       );
@@ -202,8 +230,10 @@ export default function ProjectDetailPage() {
     );
   };
 
-  // ------- Finish Project: ปั๊มวันที่วันนี้ลง completeDate -------
-  const handleFinishProject = () => {
+  // ------- Finish Project flow -------
+  const allApproved = tasks.length > 0 && tasks.every((t) => t.status === "ApprovedFinal");
+
+  const stampTodayToCompleteDate = () => {
     const today = new Date();
     const y = today.getFullYear();
     const m = String(today.getMonth() + 1).padStart(2, "0");
@@ -213,25 +243,91 @@ export default function ProjectDetailPage() {
     setValue("completeDate", isoDate);
   };
 
+  const confirmFinishProject = () => {
+    if (!allApproved) return;
+    // 1) ตีตราวัน
+    stampTodayToCompleteDate();
+    // 2) อัปเดตสถานะโปรเจคเป็น Complete
+    setProject((prev) => (prev ? ({ ...prev, status: "Complete" } as any) : prev));
+    // 3) แสดง Animation "Done"
+    setShowDoneAnim(true);
+    setIsFinishOpen(false);
+    // ซ่อนแอนิเมชันอัตโนมัติ
+    setTimeout(() => setShowDoneAnim(false), 1800);
+  };
+
   return (
     <MainLayout>
-      {/* ===== Header บนสุด: Finish Project อยู่ที่เดิม ===== */}
+      {/* ===== Header บนสุด: Finish Project (ตำแหน่งเดิม) + Status โปรเจค ===== */}
       <div className="flex justify-between items-start gap-4 mb-8 flex-wrap">
         <div className="space-y-2 max-w-4xl">
           <Link href="/tasks" className="text-sm text-primary hover:underline">
             &larr; Back to Work Tracker
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <h1 className="text-4xl font-bold text-primary">{project.name}</h1>
+            {(project as any)?.status && (
+              <Badge variant="default" className="h-6">
+                {(project as any).status}
+              </Badge>
+            )}
           </div>
           <p className="text-lg text-muted-foreground">{project.description}</p>
         </div>
 
-        {/* ✅ Finish Project: คงตำแหน่งเดิม */}
-        <Button className="gap-2" onClick={handleFinishProject}>
+        {/* ✅ Finish Project: คงตำแหน่งเดิม (มี Warning/Confirm) */}
+        <Button className="gap-2" onClick={() => setIsFinishOpen(true)}>
           <CheckCircle2 className="w-4 h-4" />
           Finish Project
         </Button>
+
+        {/* Warning / Confirm */}
+        <AlertDialog open={isFinishOpen} onOpenChange={setIsFinishOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Finish this project?</AlertDialogTitle>
+              <AlertDialogDescription>
+                คุณกำลังจะปิดโปรเจคนี้ ระบบจะตรวจสอบว่า <b>ทุก Task ต้องเป็น Approved</b> เท่านั้นจึงจะปิดได้
+                {allApproved ? (
+                  <span className="block mt-2 text-green-600">
+                    ✓ ทุก Task เป็น Approved แล้ว สามารถปิดโปรเจคได้
+                  </span>
+                ) : (
+                  <span className="block mt-2 text-red-600">
+                    ✗ ยังมี Task ที่ไม่ใช่ Approved กรุณาปรับสถานะให้ครบก่อน
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={!allApproved}
+                onClick={confirmFinishProject}
+              >
+                Confirm Finish
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Animation Done (overlay) */}
+        {showDoneAnim && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30">
+            <div className="bg-white rounded-2xl p-8 shadow-xl flex flex-col items-center justify-center gap-3 animate-in fade-in zoom-in duration-300">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full animate-ping bg-green-500/30" />
+                <div className="rounded-full bg-green-500 p-4 text-white">
+                  <BadgeCheck className="w-10 h-10" />
+                </div>
+              </div>
+              <div className="text-xl font-semibold text-green-700">Done!</div>
+              <div className="text-sm text-muted-foreground">
+                Project marked as <b>Complete</b>.
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid md:grid-cols-3 gap-8">
@@ -386,20 +482,22 @@ export default function ProjectDetailPage() {
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <Select
                                 value={task.status}
-                                onValueChange={(value: SOPStepStatus) =>
+                                onValueChange={(value: AnyStatus) =>
                                   handleStatusChange(task.id, value)
                                 }
                               >
-                                <SelectTrigger className="w-[180px] h-8">
+                                <SelectTrigger className="w-[220px] h-8">
                                   <SelectValue placeholder="Set status" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="Draft">Not Started</SelectItem>
-                                  <SelectItem value="Approved">
-                                    In Progress
+                                  <SelectItem value="Approved">In Progress</SelectItem>
+                                  <SelectItem value="Review">Ready to Review</SelectItem>
+                                  <SelectItem value="ReadyToApprove">
+                                    Ready to Approve
                                   </SelectItem>
-                                  <SelectItem value="Review">
-                                    Ready to Review
+                                  <SelectItem value="ApprovedFinal">
+                                    Approved
                                   </SelectItem>
                                 </SelectContent>
                               </Select>
