@@ -1,4 +1,4 @@
-import { SOP, SOPDepartment, SOPStatus, SOPStep, SOPStepStatus, Project } from './types';
+import { SOP, SOPDepartment, SOPStatus, SOPStep, SOPStepStatus, Project, DocumentTemplate } from './types';
 
 // This mock data is structured to be consistent with the Zod schema in CreateSopForm.tsx
 // It also includes fields needed for display purposes on the list and detail pages.
@@ -126,4 +126,23 @@ export const mockProjects: Project[] = [
   { id: 'proj-002', name: 'New Website Launch', description: 'Deploy the redesigned company website', status: 'In Progress', sop: 'SOP-002' },
   { id: 'proj-003', name: 'Compliance Audit', description: 'Internal audit for ISO 27001 compliance', status: 'Planning', sop: 'SOP-003' },
   { id: 'proj-004', name: 'Employee Satisfaction Survey', description: 'Conduct annual employee survey and analyze results', status: 'Completed', sop: 'SOP-001' },
+];
+
+
+// ----- Document Templates -----
+export const mockTemplates: DocumentTemplate[] = [
+    {
+        id: 'tpl-001',
+        title: 'Budget Request Form',
+        description: 'Standard form for requesting quarterly budget allocation for new projects or operational costs.',
+        content: '## Budget Request\n\n**Project Name:** {{project_name}}\n\n**Amount Requested:** {{amount}}\n\n**Justification:**\n\n{{justification}}',
+        createdAt: '2024-03-15T09:00:00Z',
+    },
+    {
+        id: 'tpl-002',
+        title: 'Security Incident Report',
+        description: 'Used to document any security incidents, including data breaches, unauthorized access, or policy violations.',
+        content: '## Security Incident Report\n\n**Date of Incident:** {{date}}\n\n**Type of Incident:** {{type}}\n\n**Detailed Description:**\n\n{{description}}',
+        createdAt: '2024-02-28T14:30:00Z',
+    },
 ];

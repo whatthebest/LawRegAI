@@ -61,3 +61,12 @@ export interface Project {
     status: ProjectStatus;
     sop: string; // Corresponds to an SOP ID
 }
+
+// ----- Document Template Definitions -----
+export interface DocumentTemplate {
+  id: string;
+  title: string;
+  description: string;
+  content: string; // The actual template body, can contain placeholders like {{variable}}
+  createdAt: string; // ISO date string
+}

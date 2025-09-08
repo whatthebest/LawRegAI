@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import Link from "next/link";
 import MainLayout from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,12 +52,15 @@ export default function CreateTemplateForm() {
   return (
     <MainLayout>
       <div className="space-y-4 mb-8">
+        <Link href="/template-document" className="text-sm text-primary hover:underline">
+          &larr; Back to Template List
+        </Link>
         <h1 className="text-4xl font-bold text-primary flex items-center gap-3">
             <FileText className="w-10 h-10" />
-            Template Documents
+            Create New Template
         </h1>
         <p className="text-lg text-muted-foreground">
-          Create and manage reusable document templates for your SOP steps.
+          Design a new reusable document template for your SOP steps.
         </p>
       </div>
 
@@ -64,7 +68,7 @@ export default function CreateTemplateForm() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <Card className="max-w-4xl mx-auto">
             <CardHeader>
-              <CardTitle>Create New Document Template</CardTitle>
+              <CardTitle>Template Details</CardTitle>
               <CardDescription>Fill out the form below to create a new template.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
