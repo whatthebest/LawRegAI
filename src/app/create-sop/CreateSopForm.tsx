@@ -259,7 +259,7 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
                   name="cluster"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Cluster (กลุ่ม)</FormLabel>
+                      <FormLabel>Cluster</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter cluster" {...field} />
                       </FormControl>
