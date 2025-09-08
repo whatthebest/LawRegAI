@@ -33,8 +33,8 @@ const navLinks = [
   { href: "/", label: "Overview", icon: LayoutGrid },
   { href: "/create-sop", label: "Create SOP", icon: FilePlus2 },
   { href: "/sops", label: "View SOPs", icon: ListChecks },
-  { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
   { href: "/template-document", label: "Template Documents", icon: FileText },
+  { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
   { href: "/admin", label: "Admin", icon: UserCog },
 ];
 
