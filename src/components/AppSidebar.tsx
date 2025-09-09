@@ -49,6 +49,8 @@ export default function AppSidebar() {
     if (href === "/") return pathname === href;
     if (href === "/tasks")
       return pathname.startsWith(href) || pathname.startsWith("/projects");
+    if (href === "/sops")
+      return pathname.startsWith(href) || pathname.startsWith("/create-sop") || pathname.startsWith("/template-document");
     return pathname.startsWith(href);
   };
 
