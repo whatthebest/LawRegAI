@@ -53,7 +53,7 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
         description: "The requested template could not be found.",
         variant: "destructive",
       });
-      router.push("/template-document");
+      router.push("/sops");
     }
   }, [templateId, form, router, toast]);
 
@@ -70,13 +70,13 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
     });
 
     // Navigate back to the list page after successful submission
-    router.push("/template-document");
+    router.push("/sops");
   }
 
   return (
     <MainLayout>
       <div className="space-y-4 mb-8">
-        <Link href="/template-document" className="text-sm text-primary hover:underline">
+        <Link href="/sops" className="text-sm text-primary hover:underline">
           &larr; Back to Template List
         </Link>
         <h1 className="text-4xl font-bold text-primary flex items-center gap-3">
