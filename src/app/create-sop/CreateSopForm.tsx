@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FileUpload } from "@/components/FileUpload";
+import Link from "next/link";
 
 
 
@@ -189,6 +190,9 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
   return (
     <MainLayout>
       <div className="space-y-4 mb-8">
+        <Link href="/sops" className="text-sm text-primary hover:underline">
+          &larr; Back to SOPs Management
+        </Link>
         <h1 className="text-4xl font-bold text-primary">Create New SOP</h1>
         <p className="text-lg text-muted-foreground">
           Fill out the form below to create a new Standard Operating Procedure.
