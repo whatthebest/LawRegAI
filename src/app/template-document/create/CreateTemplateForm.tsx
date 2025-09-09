@@ -52,7 +52,7 @@ export default function CreateTemplateForm() {
   return (
     <MainLayout>
       <div className="space-y-4 mb-8">
-        <Link href="/sops" className="text-sm text-primary hover:underline">
+        <Link href="/sops?tab=templates" className="text-sm text-primary hover:underline">
           &larr; Back to Template List
         </Link>
         <h1 className="text-4xl font-bold text-primary flex items-center gap-3">

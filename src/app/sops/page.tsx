@@ -1,8 +1,9 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import MainLayout from '@/components/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -39,8 +40,10 @@ const getStatusVariant = (status: SOPStatus) => {
   }
 };
 
+function SopsPageContent() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'list';
 
-export default function SopsListPage() {
   const [departmentFilter, setDepartmentFilter] = useState<SOPDepartment | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<SOPStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -86,7 +89,7 @@ export default function SopsListPage() {
         </Link>
       </div>
 
-      <Tabs defaultValue="list">
+      <Tabs defaultValue={initialTab}>
         <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="list" className="gap-2">
             <List className="w-4 h-4" /> List of SOPs
@@ -306,5 +309,13 @@ export default function SopsListPage() {
         </TabsContent>
       </Tabs>
     </MainLayout>
+  );
+}
+
+export default function SopsListPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SopsPageContent />
+    </Suspense>
   );
 }
