@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Search, FilePlus2, Check, X, List, UserCheck, Workflow } from 'lucide-react';
-import { sopDepartments, sopStatuses, mockSops } from '@/lib/mockData';
+import { ArrowRight, Search, FilePlus2, Check, X, List, UserCheck, Workflow, FileText, PlusCircle } from 'lucide-react';
+import { sopDepartments, sopStatuses, mockSops, mockTemplates } from '@/lib/mockData';
 import type { SOP, SOPDepartment, SOPStatus } from '@/lib/types';
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -78,8 +78,8 @@ export default function SopsListPage() {
     <MainLayout>
       <div className="flex justify-between items-start gap-4 mb-8 flex-wrap">
         <div className="space-y-2">
-            <h1 className="text-4xl font-bold text-primary">SOP Repository</h1>
-            <p className="text-lg text-muted-foreground">Browse, search, and manage all procedures.</p>
+            <h1 className="text-4xl font-bold text-primary">SOPs & Templates</h1>
+            <p className="text-lg text-muted-foreground">Browse, search, and manage all procedures and templates.</p>
         </div>
         <Link href="/create-sop" passHref>
           <Button className='gap-2'><FilePlus2 className='w-4 h-4'/> Create New SOP</Button>
@@ -87,12 +87,15 @@ export default function SopsListPage() {
       </div>
 
       <Tabs defaultValue="list">
-        <TabsList className="grid w-full grid-cols-2 mb-4">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="list" className="gap-2">
             <List className="w-4 h-4" /> List of SOPs
           </TabsTrigger>
           <TabsTrigger value="manager" className="gap-2">
             <UserCheck className="w-4 h-4" /> Manager Review
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2">
+            <FileText className="w-4 h-4" /> Document Templates
           </TabsTrigger>
         </TabsList>
         <TabsContent value="list">
@@ -250,6 +253,56 @@ export default function SopsListPage() {
                     )}
                 </CardContent>
             </Card>
+        </TabsContent>
+        <TabsContent value="templates">
+          <Card>
+            <CardHeader className="flex flex-row justify-between items-center">
+                <div>
+                    <CardTitle>Template Library</CardTitle>
+                    <CardDescription>Browse all available document templates.</CardDescription>
+                </div>
+                <Link href="/template-document/create" passHref>
+                    <Button className="gap-2">
+                        <PlusCircle className="w-4 h-4" />
+                        Create New Template
+                    </Button>
+                </Link>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Date Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {mockTemplates.length > 0 ? (
+                    mockTemplates.map((template) => (
+                      <TableRow key={template.id}>
+                        <TableCell className="font-medium">{template.title}</TableCell>
+                        <TableCell className="text-muted-foreground max-w-sm truncate">{template.description}</TableCell>
+                        <TableCell>{format(new Date(template.createdAt), "MMMM d, yyyy")}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/template-document/edit/${template.id}`}>Edit</Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center h-24">
+                        No templates found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </MainLayout>

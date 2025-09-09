@@ -33,7 +33,6 @@ import {
 const navLinks = [
   { href: "/", label: "Overview", icon: LayoutGrid },
   { href: "/sops", label: "SOPs Mnagement", icon: ListChecks },
-  { href: "/template-document", label: "Template Documents", icon: FileText },
   { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
   { href: "/admin", label: "Admin", icon: UserCog },
 ];
