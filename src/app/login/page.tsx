@@ -1,32 +1,48 @@
+// src/app/login/page.tsx
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Bot, LogIn } from "lucide-react";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Bot } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { InteractiveHoverButton } from "@/components/magicui/interactive-hover-button";
 
 export default function LoginPage() {
-  const { user, login, isLoading } = useAuth();
+  const { user, login, isLoading, error } = useAuth();
   const router = useRouter();
+  const sp = useSearchParams();
+  const next = sp.get("next") || "/";
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoading && user) {
-      router.replace('/');
-    }
-  }, [user, isLoading, router]);
+    if (!isLoading && user) router.replace(next);
+  }, [user, isLoading, router, next]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    login();
+    setLocalError(null);
+    if (!email || !password) {
+      setLocalError("Please enter email and password.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await login(email.trim(), password);
+      // redirect occurs via useEffect when user becomes non-null
+    } finally {
+      setSubmitting(false);
+    }
   };
-  
-  if(isLoading || user) {
-    return <div className="h-screen w-screen bg-background"></div>;
+
+  if (isLoading || user) {
+    return <div className="h-screen w-screen bg-background" />;
   }
 
   return (
@@ -39,18 +55,45 @@ export default function LoginPage() {
           <CardTitle className="text-3xl font-bold">SOP Central</CardTitle>
           <CardDescription>Please sign in to continue</CardDescription>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="jane@company.com" defaultValue="jane@company.com" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="username@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" defaultValue="password" />
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
             </div>
-            <InteractiveHoverButton type="submit" className="h-8 w-30 flex items-center gap-2 ">
-              Log In
+
+            {(localError || error) && (
+              <p className="text-sm text-red-600">{localError || error}</p>
+            )}
+
+            <InteractiveHoverButton
+              type="submit"
+              className="h-9 w-full flex items-center justify-center gap-2"
+              disabled={submitting}
+            >
+              {submitting ? "Signing in..." : "Log In"}
             </InteractiveHoverButton>
           </form>
         </CardContent>
@@ -58,3 +101,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
