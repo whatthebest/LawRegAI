@@ -27,8 +27,8 @@ import Link from "next/link";
 // ---------- Zod schemas ----------
 const sopStepSchema = z.object({
   stepOrder: z.number(),
-  title: z.string().min(3, "Step title must be at least 3 characters."),
-  detail: z.string().min(10, "Step detail must be at least 10 characters."),
+  title: z.string().min(1, "Step title must be at least 3 characters."),
+  detail: z.string().min(1, "Step detail must be at least 10 characters."),
   stepType: z.enum(["Sequence", "Decision"]),
   nextStepYes: z.string().optional(),
   nextStepNo: z.string().optional(),
@@ -41,8 +41,8 @@ const sopStepSchema = z.object({
 
 const sopFormSchema = z.object({
   sopId: z.string(),
-  title: z.string().min(5, "SOP title must be at least 5 characters."),
-  description: z.string().min(20, "Description must be at least 20 characters."),
+  title: z.string().min(1, "SOP title must be at least 5 characters."),
+  description: z.string().min(1, "Description must be at least 20 characters."),
   department: z.enum(["Operations", "Engineering", "HR", "Marketing"]),
   cluster: z.string().optional(),
   group: z.string().optional(),
