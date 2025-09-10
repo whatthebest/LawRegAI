@@ -52,7 +52,7 @@ export default function LoginPage() {
           <div className="inline-block p-3 rounded-full bg-primary/10 mx-auto">
             <Bot className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-3xl font-bold">SOP Central</CardTitle>
+          <CardTitle className="text-3xl font-bold">Compliance Standard & Assurance</CardTitle>
           <CardDescription>Please sign in to continue</CardDescription>
         </CardHeader>
 
