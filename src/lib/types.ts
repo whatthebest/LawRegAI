@@ -1,7 +1,11 @@
+export type SystemRole = "RegTechTeam" | "Manager" | "User";
+
+
 export interface User {
   name: string;
   email: string;
   department: string;
+  systemRole?: string; 
 }
 
 // ----- SOP Definitions -----

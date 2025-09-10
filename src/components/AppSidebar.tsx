@@ -34,7 +34,7 @@ const navLinks = [
   { href: "/", label: "Overview", icon: LayoutGrid },
   { href: "/sops", label: "SOPs Mnagement", icon: ListChecks },
   { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
-  { href: "/admin", label: "Admin", icon: UserCog },
+  { href: "/admin", label: "Admin", icon: UserCog, roles: ["Manager","RegTechTeam"] },
 ];
 
 export default function AppSidebar() {
@@ -68,7 +68,10 @@ export default function AppSidebar() {
 
       <SidebarContent>
         <SidebarMenu>
-          {navLinks.map((link) => (
+        {navLinks
+                .filter(link => !link.roles ||
+                  (user?.systemRole && link.roles.includes(user.systemRole)))
+          .map(link => (
             <SidebarMenuItem key={link.href}>
               {/* IMPORTANT: asChild + exactly ONE child element */}
               <SidebarMenuButton
