@@ -33,11 +33,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { SOP, SOPStep, SOPStepStatus } from "@/lib/types";
 
-const fetcher = (url: string) =>
-  fetch(url, { cache: "no-store" }).then((r) => {
-    if (!r.ok) throw new Error(`Fetch failed: ${r.status}`);
-    return r.json();
-  });
+// ---------- fetcher (ปรับ error message ให้อ่านง่าย) ----------
+const fetcher = async (url: string) => {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) {
+    let msg = `Fetch failed: ${r.status}`;
+    try { const j = await r.json(); if (j?.error) msg = j.error; } catch {}
+    throw new Error(msg);
+  }
+  return r.json();
+};
 
 // ---------- เพิ่มสถานะภายใน (ขยายจากของเดิม) ----------
 type ExtraStatus = "ReadyToApprove" | "ApprovedFinal";
@@ -45,7 +50,19 @@ type AnyStatus = SOPStepStatus | ExtraStatus;
 
 // ---------- Types ----------
 type FileDoc = { id: string; name: string; size: number; url: string };
-type TaskWithDocs = SOPStep & { status: AnyStatus; documents?: FileDoc[] };
+type TaskWithDocs = Omit<SOPStep, "status"> & {
+  /** stable local id used only on this page (not the SOP step id) */
+  _tid: string;
+  /** original step id if exists */
+  stepId?: string;
+  status: AnyStatus;
+  documents?: FileDoc[];
+};
+// Helper to generate stable local task id
+const makeTaskId = (projId: string, idx: number, step: SOPStep) => {
+  const base = (step as any).id ?? (step as any).stepId ?? (step as any).stepOrder ?? idx;
+  return `${projId}__${String(base)}`; // stable across renders per project + step
+};
 
 type ProjectRow = {
   key?: string;
@@ -66,7 +83,6 @@ const getStatusBadgeVariant = (
   status: AnyStatus
 ): VariantProps<typeof badgeVariants>["variant"] => {
   switch (status) {
-    case "Draft": return "destructive";
     case "Approved": return "secondary";
     case "Review": return "secondary";
     case "ReadyToApprove": return "outline";
@@ -77,7 +93,6 @@ const getStatusBadgeVariant = (
 
 const getStatusBadgeText = (status: AnyStatus): string => {
   switch (status) {
-    case "Draft": return "Not Started";
     case "Approved": return "In Progress";
     case "Review": return "Ready to Review";
     case "ReadyToApprove": return "Ready to Approve";
@@ -95,9 +110,10 @@ interface ProjectFormValues {
   completeDate?: string;
 }
 
-export default function ProjectDetailPage(_props: { params: Promise<{ id: string }>}) {
-  const params = useParams();
-  const projectId = params.id as string;
+export default function ProjectDetailPage() {
+  // ใช้ useParams ฝั่ง client อย่างเดียว
+  const { id } = useParams<{ id: string }>() as { id: string };
+  const projectId = id;
 
   // ----- โหลด Project เดียว + SOP ของมัน -----
   const {
@@ -152,18 +168,20 @@ export default function ProjectDetailPage(_props: { params: Promise<{ id: string
   }, [project, resetProject]);
 
   useEffect(() => {
-    if (sop) {
+    if (sop && projectId) {
       setTasks(
-        (sop.steps ?? []).map((step) => ({
+        (sop.steps ?? []).map((step, i) => ({
           ...step,
-          status: (step.status as AnyStatus) || "Draft",
+          _tid: makeTaskId(projectId, i, step),
+          stepId: (step as any).id ?? (step as any).stepId,
+          status: ((step as any).status as AnyStatus) || "Draft",
           documents: [],
-        }))
+        })) as TaskWithDocs[]
       );
     } else {
       setTasks([]);
     }
-  }, [sop]);
+  }, [sop, projectId]);
 
   // ----- Loading / Error States -----
   if (loadingProject || (project && project.sop && loadingSop)) {
@@ -211,8 +229,8 @@ export default function ProjectDetailPage(_props: { params: Promise<{ id: string
   }
 
   // ----- Actions -----
-  const handleStatusChange = (taskId: string, newStatus: AnyStatus) => {
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)));
+  const handleStatusChange = (taskTid: string, newStatus: AnyStatus) => {
+    setTasks((prev) => prev.map((t) => (t._tid === taskTid ? { ...t, status: newStatus } : t)));
   };
 
   const handleEditProject = async (data: ProjectFormValues) => {
@@ -283,17 +301,17 @@ export default function ProjectDetailPage(_props: { params: Promise<{ id: string
   const getId = () =>
     (globalThis as any)?.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
-  const handleAddDocuments = (taskId: string, fileList: FileList | null) => {
+  const handleAddDocuments = (taskTid: string, fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     const files = Array.from(fileList);
 
     setTasks((prev) =>
       prev.map((t) => {
-        if (t.id !== taskId) return t;
+        if (t._tid !== taskTid) return t;
         const nextDocs: FileDoc[] = [
           ...(t.documents || []),
           ...files.map((f) => ({
-            id: `${taskId}-${getId()}`,
+            id: `${taskTid}-${getId()}`,
             name: f.name,
             size: f.size,
             url: URL.createObjectURL(f),
@@ -304,10 +322,12 @@ export default function ProjectDetailPage(_props: { params: Promise<{ id: string
     );
   };
 
-  const handleRemoveDocument = (taskId: string, docId: string) => {
+  const handleRemoveDocument = (taskTid: string, docId: string) => {
     setTasks((prev) =>
       prev.map((t) => {
-        if (t.id !== taskId) return t;
+        if (t._tid !== taskTid) return t;
+        const target = (t.documents || []).find((d) => d.id === docId);
+        if (target) { try { URL.revokeObjectURL(target.url); } catch {} }
         const nextDocs = (t.documents || []).filter((d) => d.id !== docId);
         return { ...t, documents: nextDocs };
       })
@@ -337,10 +357,19 @@ export default function ProjectDetailPage(_props: { params: Promise<{ id: string
           <p className="text-lg text-muted-foreground">{project.description}</p>
         </div>
 
-        <Button className="gap-2" onClick={() => setIsFinishOpen(true)}>
-          <CheckCircle2 className="w-4 h-4" />
-          Finish Project
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button className="gap-2" onClick={() => setIsFinishOpen(true)} disabled={!tasks.length}>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Finish Project
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {!tasks.length && <TooltipContent>ต้องมี Task อย่างน้อย 1 รายการ</TooltipContent>}
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Finish Confirm */}
         <AlertDialog open={isFinishOpen} onOpenChange={setIsFinishOpen}>
@@ -362,7 +391,7 @@ export default function ProjectDetailPage(_props: { params: Promise<{ id: string
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction disabled={!allApproved} onClick={confirmFinishProject}>
+              <AlertDialogAction type="button" disabled={!allApproved} onClick={confirmFinishProject}>
                 Confirm Finish
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -485,7 +514,7 @@ export default function ProjectDetailPage(_props: { params: Promise<{ id: string
               <div className="space-y-4">
                 {sop && tasks.length > 0 ? (
                   tasks.map((task) => (
-                    <Card key={task.id} className="p-4 pt-10 relative">
+                    <Card key={task._tid} className="p-4 pt-10 relative">
                       <Badge variant={getStatusBadgeVariant(task.status)} className="absolute top-3 left-3">
                         {getStatusBadgeText(task.status)}
                       </Badge>
@@ -506,8 +535,8 @@ export default function ProjectDetailPage(_props: { params: Promise<{ id: string
 
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <Select
-                                value={task.status}
-                                onValueChange={(value: AnyStatus) => handleStatusChange(task.id, value)}
+                                value={task.status as string}
+                                onValueChange={(value) => handleStatusChange(task._tid, value as AnyStatus)}
                               >
                                 <SelectTrigger className="w-[220px] h-8">
                                   <SelectValue placeholder="Set status" />
@@ -531,9 +560,11 @@ export default function ProjectDetailPage(_props: { params: Promise<{ id: string
                               <Label className="text-sm font-medium">Documents</Label>
                               <div className="relative">
                                 <Input
-                                  id={`file-${task.id}`} type="file" multiple
+                                  id={`file-${task._tid}`}
+                                  type="file"
+                                  multiple
                                   className="absolute inset-0 opacity-0 cursor-pointer"
-                                  onChange={(e) => handleAddDocuments(task.id, e.target.files)}
+                                  onChange={(e) => handleAddDocuments(task._tid, e.target.files)}
                                 />
                                 <Button variant="outline" size="sm">Add Document</Button>
                               </div>
@@ -549,7 +580,7 @@ export default function ProjectDetailPage(_props: { params: Promise<{ id: string
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Link href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm underline">Download</Link>
-                                      <Button variant="ghost" size="sm" onClick={() => handleRemoveDocument(task.id, doc.id)}>Remove</Button>
+                                      <Button variant="ghost" size="sm" onClick={() => handleRemoveDocument(task._tid, doc.id)}>Remove</Button>
                                     </div>
                                   </li>
                                 ))}
