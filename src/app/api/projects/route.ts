@@ -127,6 +127,63 @@ export async function POST(req: Request) {
     const newRef = db.ref("projects").push();
     await newRef.set(rec);
 
+    // If linked to an SOP, materialize SOP steps into project-specific tasks
+    if (sopId) {
+      try {
+        // Find SOP by direct key first, then by sopId/id
+        const sopDirect = await db.ref(`sops/${sopId}`).get();
+        let sopVal: any | null = null;
+        if (sopDirect.exists()) {
+          sopVal = sopDirect.val();
+        } else {
+          const bySopId = await db.ref("sops").orderByChild("sopId").equalTo(sopId).limitToFirst(1).get();
+          if (bySopId.exists()) {
+            sopVal = Object.values(bySopId.val())[0];
+          } else {
+            const byId = await db.ref("sops").orderByChild("id").equalTo(sopId).limitToFirst(1).get();
+            if (byId.exists()) {
+              sopVal = Object.values(byId.val())[0];
+            }
+          }
+        }
+
+        const rawSteps = Array.isArray(sopVal?.steps)
+          ? sopVal.steps
+          : sopVal && typeof sopVal?.steps === "object"
+            ? Object.values(sopVal.steps)
+            : [];
+
+        const tasksObj: Record<string, any> = {};
+        (rawSteps as any[]).forEach((st: any, i: number) => {
+          const taskId = String(
+            st?.id ?? st?.stepId ?? st?.stepKey ?? `step-${(typeof st?.stepOrder === 'number' ? st.stepOrder : i + 1)}`
+          );
+          tasksObj[taskId] = sanitize({
+            taskId,
+            stepOrder: typeof st?.stepOrder === "number" ? st.stepOrder : i + 1,
+            title: String(st?.title ?? ""),
+            detail: String(st?.detail ?? ""),
+            stepType: st?.stepType === "Decision" ? "Decision" : "Sequence",
+            sla: typeof st?.sla === "number" ? st.sla : 1,
+            owner: String(st?.owner ?? ""),
+            reviewer: String(st?.reviewer ?? ""),
+            approver: String(st?.approver ?? ""),
+            ...(st?.nextStepYes ? { nextStepYes: String(st.nextStepYes) } : {}),
+            ...(st?.nextStepNo ? { nextStepNo: String(st.nextStepNo) } : {}),
+            status: "Draft",
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+        });
+
+        if (Object.keys(tasksObj).length > 0) {
+          await db.ref(`projects/${newRef.key}/tasks`).set(tasksObj);
+        }
+      } catch (e) {
+        console.error("[POST /api/projects] failed to materialize tasks:", e);
+      }
+    }
+
     return NextResponse.json({ key: newRef.key, ...rec }, { status: 201 });
   } catch (e: any) {
     console.error("[POST /api/projects] failed:", e);

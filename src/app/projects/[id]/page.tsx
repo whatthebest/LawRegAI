@@ -1,6 +1,7 @@
+/* eslint-disable */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR, { mutate } from "swr";
 import type { VariantProps } from "class-variance-authority";
 import { useParams } from "next/navigation";
@@ -122,11 +123,38 @@ export default function ProjectDetailPage() {
     isLoading: loadingProject,
   } = useSWR<ProjectRow>(projectId ? `/api/projects/${projectId}` : null, fetcher);
 
+  // Resolve linked SOP id/key from the project, regardless of field naming
+  const linkedSopId = useMemo(() => {
+    const p: any = project || {};
+    return (p.sop ?? p.sopId ?? p.sopKey ?? "").toString().trim();
+  }, [project]);
+
   const {
     data: sop,
     error: sopErr,
     isLoading: loadingSop,
-  } = useSWR<SOP>(project?.sop ? `/api/sops/${project.sop}` : null, fetcher);
+  } = useSWR<SOP>(linkedSopId ? `/api/sops/${linkedSopId}` : null, fetcher);
+
+  // Load project tasks (materialized from SOP)
+  type ProjectTaskRow = {
+    taskId: string;
+    stepOrder?: number;
+    title?: string;
+    detail?: string;
+    stepType?: string;
+    nextStepYes?: string;
+    nextStepNo?: string;
+    sla?: number;
+    owner?: string;
+    reviewer?: string;
+    approver?: string;
+    status?: string;
+    documents?: any[] | Record<string, any> | undefined;
+  };
+  const { data: projectTasks, isLoading: loadingTasks, error: tasksErr } = useSWR<ProjectTaskRow[]>(
+    projectId ? `/api/projects/${projectId}/tasks` : null,
+    fetcher
+  );
 
   // รายการ SOP ทั้งหมด ใช้ใน Edit dialog
   const { data: allSops } = useSWR<SOP[]>(`/api/sops`, fetcher);
@@ -136,6 +164,8 @@ export default function ProjectDetailPage() {
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isFinishOpen, setIsFinishOpen] = useState(false);
   const [showDoneAnim, setShowDoneAnim] = useState(false);
+  const [savingTask, setSavingTask] = useState<Record<string, boolean>>({});
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
 
   const {
     control,
@@ -168,23 +198,43 @@ export default function ProjectDetailPage() {
   }, [project, resetProject]);
 
   useEffect(() => {
-    if (sop && projectId) {
-      setTasks(
-        (sop.steps ?? []).map((step, i) => ({
-          ...step,
-          _tid: makeTaskId(projectId, i, step),
-          stepId: (step as any).id ?? (step as any).stepId,
-          status: ((step as any).status as AnyStatus) || "Draft",
-          documents: [],
-        })) as TaskWithDocs[]
-      );
-    } else {
+    if (projectTasks && projectId) {
+      const list = (projectTasks ?? []).map((t, i) => {
+        const docs = t?.documents
+          ? Array.isArray(t.documents)
+            ? t.documents
+            : Object.values(t.documents as Record<string, any>)
+          : [];
+        const base: any = {
+          id: t.taskId,
+          stepOrder: t.stepOrder ?? i + 1,
+          title: t.title ?? "",
+          detail: t.detail ?? "",
+          stepType: (t.stepType as any) ?? "Sequence",
+          nextStepYes: t.nextStepYes,
+          nextStepNo: t.nextStepNo,
+          sla: t.sla ?? 1,
+          owner: t.owner ?? "",
+          reviewer: t.reviewer ?? "",
+          approver: t.approver ?? "",
+        } as SOPStep;
+        const stepAny: any = base;
+        return {
+          ...base,
+          _tid: `${projectId}__${t.taskId}`,
+          stepId: t.taskId,
+          status: (t.status as AnyStatus) ?? ("Draft" as AnyStatus),
+          documents: docs as FileDoc[],
+        } as TaskWithDocs;
+      });
+      setTasks(list);
+    } else if (!loadingTasks) {
       setTasks([]);
     }
-  }, [sop, projectId]);
+  }, [projectTasks, projectId, loadingTasks]);
 
   // ----- Loading / Error States -----
-  if (loadingProject || (project && project.sop && loadingSop)) {
+  if (loadingProject || (project && project.sop && loadingSop) || loadingTasks) {
     return (
       <MainLayout>
         <div className="p-8 text-muted-foreground">Loading project…</div>
@@ -229,8 +279,87 @@ export default function ProjectDetailPage() {
   }
 
   // ----- Actions -----
-  const handleStatusChange = (taskTid: string, newStatus: AnyStatus) => {
-    setTasks((prev) => prev.map((t) => (t._tid === taskTid ? { ...t, status: newStatus } : t)));
+  const persistTaskStatus = async (task: TaskWithDocs, newStatus: AnyStatus) => {
+    const headers = { "Content-Type": "application/json" };
+
+    const stepId = task.stepId;
+
+    const candidates: { url: string; method: "PUT" | "PATCH"; body: any }[] = [];
+
+    // Primary: project task endpoint by stepId
+    if (stepId) {
+      candidates.push({
+        url: `/api/projects/${projectId}/tasks/${encodeURIComponent(stepId)}`,
+        method: "PUT",
+        body: { status: newStatus },
+      });
+      // Convenience fallback
+      candidates.push({
+        url: `/api/projects/${projectId}/tasks`,
+        method: "PUT",
+        body: { stepId, status: newStatus },
+      });
+      // Last resort: project-level PUT with stepId
+      candidates.push({
+        url: `/api/projects/${projectId}`,
+        method: "PUT",
+        body: { stepId, status: newStatus },
+      });
+    }
+
+    for (const req of candidates) {
+      try {
+        const res = await fetch(req.url, {
+          method: req.method,
+          headers,
+          body: JSON.stringify(req.body),
+        });
+        if (res.ok) return true;
+        // Log server-provided error text for debugging
+        try {
+          const t = await res.text();
+          console.error(`[persistTaskStatus] ${req.method} ${req.url} -> ${res.status}`, t);
+        } catch {}
+      } catch (e) {
+        console.error(`[persistTaskStatus] failed ${req.method} ${req.url}`, e);
+      }
+    }
+    return false;
+  };
+
+  const handleStatusChange = async (taskTid: string, newStatus: AnyStatus) => {
+    // optimistic UI
+    let targetTask: TaskWithDocs | undefined;
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t._tid === taskTid) {
+          targetTask = t;
+          return { ...t, status: newStatus };
+        }
+        return t;
+      })
+    );
+    setSavingTask((s) => ({ ...s, [taskTid]: true }));
+    try {
+      if (targetTask) {
+        const ok = await persistTaskStatus(targetTask, newStatus);
+        if (!ok) {
+          // revert on failure
+          setTasks((prev) => prev.map((t) => (t._tid === taskTid ? { ...t, status: targetTask!.status } : t)));
+          alert("Failed to save status.\nPlease confirm which endpoint should update a step:\n1) PATCH /api/sops/:sopId/steps { stepId, status }\n2) PUT /api/sops/:sopId/steps/:stepId { status }\n3) PUT /api/sops/:sopId { stepId, status }\n(or project-level /api/projects/:id/tasks...)");
+        } else {
+          // refresh project/related data
+          await mutate(`/api/projects/${projectId}/tasks`);
+          await mutate(`/api/projects/${projectId}`);
+        }
+      }
+    } finally {
+      setSavingTask((s) => {
+        const next = { ...s };
+        delete next[taskTid];
+        return next;
+      });
+    }
   };
 
   const handleEditProject = async (data: ProjectFormValues) => {
@@ -301,37 +430,41 @@ export default function ProjectDetailPage() {
   const getId = () =>
     (globalThis as any)?.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
-  const handleAddDocuments = (taskTid: string, fileList: FileList | null) => {
+  const handleAddDocuments = async (taskTid: string, fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
-    const files = Array.from(fileList);
+    const t = tasks.find((x) => x._tid === taskTid);
+    if (!t?.stepId) return;
 
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t._tid !== taskTid) return t;
-        const nextDocs: FileDoc[] = [
-          ...(t.documents || []),
-          ...files.map((f) => ({
-            id: `${taskTid}-${getId()}`,
-            name: f.name,
-            size: f.size,
-            url: URL.createObjectURL(f),
-          })),
-        ];
-        return { ...t, documents: nextDocs };
-      })
-    );
+    const form = new FormData();
+    Array.from(fileList).forEach((f) => form.append("file", f));
+    try {
+      const res = await fetch(`/api/projects/${projectId}/tasks/${encodeURIComponent(t.stepId)}/documents`, {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+      const data = await res.json();
+      const uploaded: FileDoc[] = (data?.uploaded ?? []) as FileDoc[];
+      if (uploaded.length) {
+        setTasks((prev) => prev.map((x) => (x._tid === taskTid ? { ...x, documents: [ ...(x.documents ?? []), ...uploaded ] } : x)));
+      }
+    } catch (e: any) {
+      alert(e?.message || "Failed to upload document(s)");
+    }
   };
 
-  const handleRemoveDocument = (taskTid: string, docId: string) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t._tid !== taskTid) return t;
-        const target = (t.documents || []).find((d) => d.id === docId);
-        if (target) { try { URL.revokeObjectURL(target.url); } catch {} }
-        const nextDocs = (t.documents || []).filter((d) => d.id !== docId);
-        return { ...t, documents: nextDocs };
-      })
-    );
+  const handleRemoveDocument = async (taskTid: string, docId: string) => {
+    const t = tasks.find((x) => x._tid === taskTid);
+    if (!t?.stepId) return;
+    try {
+      const res = await fetch(`/api/projects/${projectId}/tasks/${encodeURIComponent(t.stepId)}/documents/${encodeURIComponent(docId)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(`Remove failed (${res.status})`);
+      setTasks((prev) => prev.map((x) => (x._tid === taskTid ? { ...x, documents: (x.documents || []).filter((d) => d.id !== docId) } : x)));
+    } catch (e: any) {
+      alert(e?.message || "Failed to remove document");
+    }
   };
 
   // ------- Finish Project flow -------
@@ -425,7 +558,7 @@ export default function ProjectDetailPage() {
               <div>
                 <CardTitle>Project To-Do List</CardTitle>
                 <CardDescription>
-                  {sop ? <>Tasks generated from the linked SOP: "{sop.title}"</> : "No SOP linked."}
+                  {sop ? <>Tasks generated from the linked SOP: "{sop.title}"</> : (linkedSopId ? "Loading SOP…" : "No SOP linked.")}
                 </CardDescription>
               </div>
 
@@ -491,10 +624,11 @@ export default function ProjectDetailPage() {
                         {(allSops ?? []).find((s) => s.id === watch("sop"))?.title ?? "—"}
                       </div>
                       <ul className="mt-1 list-disc pl-4">
-                        {(allSops ?? [])
-                          .find((s) => s.id === watch("sop"))
-                          ?.steps.slice(0, 3)
-                          .map((st, i) => <li key={i}>{(st as any).title ?? st}</li>) || null}
+                        {(
+                          (allSops ?? []).find((s) => s.id === watch("sop"))?.steps?.slice(0, 3) ?? []
+                        ).map((st, i) => (
+                          <li key={i}>{(st as any)?.title ?? String(st)}</li>
+                        ))}
                       </ul>
                     </div>
 
@@ -507,12 +641,35 @@ export default function ProjectDetailPage() {
                   </form>
                 </DialogContent>
               </Dialog>
+
+              {/* Add Task (when no SOP) */}
+              {!linkedSopId && (
+                <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="ml-2">Add Task</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Task</DialogTitle>
+                      <DialogDescription>Create a task for this project (no SOP).</DialogDescription>
+                    </DialogHeader>
+
+                    <AddTaskForm
+                      onCreated={() => {
+                        setIsAddTaskOpen(false);
+                        mutate(`/api/projects/${projectId}/tasks`);
+                      }}
+                      projectId={projectId}
+                    />
+                  </DialogContent>
+                </Dialog>
+              )}
             </CardHeader>
 
             {/* ===== Tasks ===== */}
             <CardContent className="space-y-4">
               <div className="space-y-4">
-                {sop && tasks.length > 0 ? (
+                {tasks.length > 0 ? (
                   tasks.map((task) => (
                     <Card key={task._tid} className="p-4 pt-10 relative">
                       <Badge variant={getStatusBadgeVariant(task.status)} className="absolute top-3 left-3">
@@ -536,7 +693,8 @@ export default function ProjectDetailPage() {
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <Select
                                 value={task.status as string}
-                                onValueChange={(value) => handleStatusChange(task._tid, value as AnyStatus)}
+                                onValueChange={async (value) => { await handleStatusChange(task._tid, value as AnyStatus); }}
+                                disabled={!!savingTask[task._tid]}
                               >
                                 <SelectTrigger className="w-[220px] h-8">
                                   <SelectValue placeholder="Set status" />
@@ -601,7 +759,11 @@ export default function ProjectDetailPage() {
                   ))
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-8">
-                    {sopErr ? "Failed to load SOP." : "This SOP has no steps defined."}
+                    {linkedSopId
+                      ? sopErr
+                        ? "Failed to load SOP."
+                        : "This SOP has no steps defined."
+                      : "No tasks yet. Use Add Task to create one."}
                   </p>
                 )}
               </div>
@@ -614,14 +776,154 @@ export default function ProjectDetailPage() {
           <Card className="sticky top-24">
             <CardHeader>
               <CardTitle>SOP Guideline</CardTitle>
-              <CardDescription>{sop?.title ?? "—"}</CardDescription>
+              <CardDescription>
+                {sop?.title ?? (linkedSopId ? "—" : "Project Tasks")}
+              </CardDescription>
             </CardHeader>
             <CardContent className="max-h-[70vh] overflow-y-auto">
-              {sop ? <SopTimeline steps={sop.steps} /> : <p className="text-sm text-muted-foreground">No SOP linked.</p>}
+              {sop ? (
+                <SopTimeline steps={sop.steps} />
+              ) : tasks.length > 0 ? (
+                <SopTimeline
+                  steps={tasks.map((t) => ({
+                    id: t.stepId || t._tid,
+                    stepOrder: t.stepOrder,
+                    title: t.title,
+                    detail: t.detail,
+                    stepType: t.stepType as any,
+                    nextStepYes: (t as any).nextStepYes,
+                    nextStepNo: (t as any).nextStepNo,
+                    sla: t.sla,
+                    owner: t.owner,
+                    reviewer: t.reviewer,
+                    approver: t.approver,
+                    status: (t.status as any) || "Draft",
+                    attachments: [],
+                  }))}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">No SOP linked.</p>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
     </MainLayout>
+  );
+}
+
+// ----- Add Task Form Component -----
+function AddTaskForm({ projectId, onCreated }: { projectId: string; onCreated: () => void }) {
+  const { register, handleSubmit, control, watch, formState: { isSubmitting } } = useForm<any>({
+    defaultValues: {
+      title: "",
+      detail: "",
+      stepType: "Sequence",
+      sla: 1,
+      owner: "",
+      reviewer: "",
+      approver: "",
+    },
+  });
+
+  const onSubmit = async (data: any) => {
+    const payload: any = {
+      title: String(data.title || ""),
+      detail: String(data.detail || ""),
+      stepType: data.stepType === "Decision" ? "Decision" : "Sequence",
+      sla: Number(data.sla) || 1,
+      owner: String(data.owner || ""),
+      reviewer: String(data.reviewer || ""),
+      approver: String(data.approver || ""),
+    };
+    if (payload.stepType === "Decision") {
+      if (data.nextStepYes) payload.nextStepYes = String(data.nextStepYes);
+      if (data.nextStepNo) payload.nextStepNo = String(data.nextStepNo);
+    }
+    const res = await fetch(`/api/projects/${projectId}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      let msg = `Create failed (${res.status})`;
+      try { const j = await res.json(); if (j?.error) msg = j.error; } catch {}
+      alert(msg);
+      return;
+    }
+    onCreated();
+  };
+
+  const stepType = watch("stepType");
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="task-title">Title</Label>
+        <Input id="task-title" {...register("title", { required: true })} />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="task-detail">Detail</Label>
+        <Textarea id="task-detail" {...register("detail")} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Step Type</Label>
+          <Controller
+            control={control}
+            name="stepType"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select step type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sequence">Sequence</SelectItem>
+                  <SelectItem value="Decision">Decision</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="task-sla">SLA (days)</Label>
+          <Input id="task-sla" type="number" min={0} {...register("sla", { valueAsNumber: true })} />
+        </div>
+      </div>
+
+      {stepType === "Decision" && (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="task-next-yes">Next step (Yes)</Label>
+            <Input id="task-next-yes" {...register("nextStepYes")} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="task-next-no">Next step (No)</Label>
+            <Input id="task-next-no" {...register("nextStepNo")} />
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="task-owner">Owner</Label>
+          <Input id="task-owner" placeholder="owner@email" {...register("owner")} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="task-reviewer">Reviewer</Label>
+          <Input id="task-reviewer" placeholder="reviewer@email" {...register("reviewer")} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="task-approver">Approver</Label>
+          <Input id="task-approver" placeholder="approver@email" {...register("approver")} />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="submit" disabled={isSubmitting}>Create Task</Button>
+      </div>
+    </form>
   );
 }

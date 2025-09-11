@@ -18,6 +18,20 @@ function getFirebaseAdminApp(): App {
   return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), databaseURL });
 }
 
+/** Normalize steps to an array. If steps is an object, convert entries to an array and preserve a stable id. */
+function normalizeSteps(steps: any): any[] {
+  if (Array.isArray(steps)) return steps;
+  if (steps && typeof steps === "object") {
+    return Object.entries(steps).map(([k, v]: [string, any]) => {
+      const obj = v ?? {};
+      // keep a stable id so client can match/update by id or index
+      const id = obj.id ?? obj.stepId ?? k;
+      return { id, ...obj };
+    });
+  }
+  return [];
+}
+
 /* ---------- GET: get one SOP by id or key ---------- */
 export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -32,7 +46,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
         key: id,
         id: v?.sopId ?? v?.id ?? id,
         title: String(v?.title ?? ""),
-        steps: Array.isArray(v?.steps) ? v.steps : [],
+        steps: normalizeSteps(v?.steps),
         ...v,
       }, { headers: { "Cache-Control": "no-store" } });
     }
@@ -46,7 +60,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
         key,
         id: v?.sopId ?? v?.id ?? key,
         title: String(v?.title ?? ""),
-        steps: Array.isArray(v?.steps) ? v.steps : [],
+        steps: normalizeSteps(v?.steps),
         ...v,
       }, { headers: { "Cache-Control": "no-store" } });
     }
@@ -58,7 +72,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
         key,
         id: v?.sopId ?? v?.id ?? key,
         title: String(v?.title ?? ""),
-        steps: Array.isArray(v?.steps) ? v.steps : [],
+        steps: normalizeSteps(v?.steps),
         ...v,
       }, { headers: { "Cache-Control": "no-store" } });
     }

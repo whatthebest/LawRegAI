@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -7,10 +6,15 @@ import MainLayout from "@/components/MainLayout";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { ListChecks, CheckSquare, UserCog, Bot, FolderKanban, Clock, FileCheck2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { mockSops, mockProjects } from "@/lib/mockData";
 import type { SOP, SOPStep } from "@/lib/types";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
+import useSWR from "swr";
+
+const fetcher = (url: string) => fetch(url).then((r) => {
+  if (!r.ok) throw new Error(`Failed to fetch ${url}: ${r.status}`);
+  return r.json();
+});
 
 interface Task extends SOPStep {
   sopTitle: string;
@@ -19,6 +23,13 @@ interface Task extends SOPStep {
 
 export default function HomePage() {
   const { user } = useAuth();
+
+  const { data: projectsData, error: projectsError, isLoading: projectsLoading } = useSWR("/api/projects", fetcher);
+  const { data: sopsData, error: sopsError, isLoading: sopsLoading } = useSWR("/api/sops", fetcher);
+
+  // Normalize arrays to avoid undefined during initial render
+  const projects = Array.isArray(projectsData) ? projectsData : [];
+  const sops = Array.isArray(sopsData) ? sopsData : [];
 
   const { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview } = useMemo(() => {
     if (!user) {
@@ -33,24 +44,42 @@ export default function HomePage() {
     const allTasks: Task[] = [];
     const sopsInReview: SOP[] = [];
 
-    mockSops.forEach(sop => {
-      if (sop.status === 'In Review') {
-          sopsInReview.push(sop);
+    sops.forEach((sop: SOP) => {
+      if (sop.status === "In Review") {
+        sopsInReview.push(sop);
       }
-      sop.steps.forEach(step => {
+      sop.steps?.forEach((step: SOPStep) => {
         if (step.reviewer === user.email || step.approver === user.email) {
           allTasks.push({ ...step, sopTitle: sop.title, sopId: sop.id });
         }
       });
     });
 
-    const toReviewTasks = allTasks.filter(task => task.reviewer === user?.email && task.status === 'Review');
-    const toApproveTasks = allTasks.filter(task => task.approver === user?.email && task.status === 'Review');
-    
-    const projectsInProgress = mockProjects.filter(p => p.status === 'In Progress');
+    const toReviewTasks = allTasks.filter((task) => task.reviewer === user?.email && task.status === "Review");
+    const toApproveTasks = allTasks.filter((task) => task.approver === user?.email && task.status === "Review");
+
+    const projectsInProgress = projects.filter((p: any) => p.status === "In Progress");
 
     return { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview };
-  }, [user]);
+  }, [user, projects, sops]);
+
+  if (projectsLoading || sopsLoading) {
+    return (
+      <MainLayout>
+        <div className="py-24 text-center text-muted-foreground">Loading your dashboard…</div>
+      </MainLayout>
+    );
+  }
+
+  if (projectsError || sopsError) {
+    return (
+      <MainLayout>
+        <div className="py-24 text-center text-destructive">
+          Failed to load data. Please try again or contact support.
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -113,25 +142,31 @@ export default function HomePage() {
             <CardDescription>A list of your recent projects.</CardDescription>
           </CardHeader>
           <CardContent className="grid md:grid-cols-2 gap-4">
-            {mockProjects.slice(0, 4).map(project => (
-                 <Card key={project.id}>
-                    <CardHeader>
-                        <CardTitle className="flex justify-between items-center text-lg">
-                            {project.name}
-                            <Badge variant={project.status === 'Completed' ? 'default' : 'secondary'}>{project.status}</Badge>
-                        </CardTitle>
-                        <CardDescription>{mockSops.find(s => s.id === project.sop)?.title}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground line-clamp-2 h-10">{project.description}</p>
-                    </CardContent>
-                    <CardFooter>
-                       <Link href={`/projects/${project.id}`} passHref>
-                          <Button variant="outline" size="sm" className="w-full">View Project</Button>
-                        </Link>
-                    </CardFooter>
-                </Card>
-            ))}
+          {projects.slice(0, 4).map((project, index) => (
+            <Card key={`${project.id}-${index}`}>
+              <CardHeader>
+                <CardTitle className="flex justify-between items-center text-lg">
+                  {project.name}
+                  <Badge variant={project.status === 'Completed' ? 'default' : 'secondary'}>
+                    {project.status}
+                  </Badge>
+                </CardTitle>
+                <CardDescription>
+                  {sops.find((s: SOP) => s.id === project.sop)?.title}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground line-clamp-2 h-10">
+                  {project.description}
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Link href={`/projects/${project.id}`} passHref>
+                  <Button variant="outline" size="sm" className="w-full">View Project</Button>
+                </Link>
+              </CardFooter>
+            </Card>
+          ))}
           </CardContent>
            <CardFooter>
               <Link href="/tasks" passHref className="w-full">

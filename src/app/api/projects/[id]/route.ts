@@ -67,6 +67,16 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   const raw = await req.json();
   const body = sanitize(raw) ?? {};
 
+  // Convenience: if request is intended to update a task status by stepId
+  if (typeof body.stepId === "string" && typeof body.status === "string") {
+    const ref = db.ref(`projects/${key}/tasks/${body.stepId}`);
+    const exists = (await ref.get()).exists();
+    if (!exists) return NextResponse.json({ error: "task not found" }, { status: 404 });
+    await ref.update({ status: body.status, updatedAt: Date.now() });
+    const snap = await ref.get();
+    return NextResponse.json({ taskId: body.stepId, ...snap.val() });
+  }
+
   const allowed: Record<string, any> = {};
   if (typeof body.name === "string") allowed.name = body.name;
   if (typeof body.description === "string") allowed.description = body.description;
