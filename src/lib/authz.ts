@@ -1,37 +1,36 @@
-import { getSessionUser } from "./auth-server";
-import { adminDb } from "@/lib/firebase-admin"; // your Admin SDK db()
+// src/lib/authz.ts
+import 'server-only';
+import { cookies } from 'next/headers';
+import { adminAuth, adminDb } from '@/lib/firebase-admin';
 
-/** Require a valid session, else return null. */
-export async function requireSession() {
-  return await getSessionUser(); // decoded token or null
+export type Decoded = import('firebase-admin').auth.DecodedIdToken;
+
+async function readSessionCookie(): Promise<string | undefined> {
+  const jar = await cookies(); // <-- await the Promise overload
+  return (
+    jar.get('__session')?.value ??
+    jar.get('session')?.value ??
+    jar.get('id_token')?.value
+  );
 }
 
-/** Read systemRole from RTDB by email (exactly your users tree). */
-export async function getSystemRoleByEmail(email: string) {
-  const snap = await adminDb()
-    .ref("users")
-    .orderByChild("email")
-    .equalTo(email)
-    .limitToFirst(1)
-    .once("value");
-  const val = snap.val() as Record<string, any> | null;
-  if (!val) return null;
-  const key = Object.keys(val)[0];
-  return (val[key]?.systemRole as string) ?? null;
+export async function requireSession(): Promise<Decoded> {
+  const token = await readSessionCookie(); // <-- await here too
+  if (!token) throw new Error('NO_SESSION');
+
+  // If you use Firebase session cookies:
+  return adminAuth().verifySessionCookie(token, true);
+  // If you pass ID tokens instead, use: return adminAuth().verifyIdToken(token, true);
 }
 
-/** Authorization predicate: allow if custom claim OR allowed systemRole. */
-export async function requireAdminLike(decoded: { email?: string; [k: string]: any } | null) {
-  if (!decoded) return { ok: false as const, reason: "unauthenticated" };
-
-  // A) custom claim
-  if (decoded.isAdmin === true) return { ok: true as const };
-
-  // B) DB role check
-  if (decoded.email) {
-    const role = await getSystemRoleByEmail(decoded.email);
-    if (role && ["Manager", "RegTechTeam"].includes(role)) return { ok: true as const };
+export async function requireAdminLike(decoded: Decoded): Promise<{ ok: boolean }> {
+  const claims: any = decoded ?? {};
+  const claimRole = claims.systemRole ?? claims.role;
+  if (claims.admin === true || claimRole === 'RegTechTeam' || claimRole === 'Manager') {
+    return { ok: true };
   }
 
-  return { ok: false as const, reason: "forbidden" };
+  const snap = await adminDb().ref(`users/${decoded.uid}`).get();
+  const sysRole = snap.val()?.systemRole;
+  return { ok: sysRole === 'RegTechTeam' || sysRole === 'Manager' };
 }
