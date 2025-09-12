@@ -2,6 +2,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { cert, getApp, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getDatabase } from "firebase-admin/database";
+import fs from "fs";
+import path from "path";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +37,10 @@ function sanitize(v: any): any {
 /** หา push-key ของ project จาก projectId (เช่น "project-005") */
 async function findProjectKeyById(projectId: string): Promise<string | null> {
   const db = getDatabase(getFirebaseAdminApp());
+  // support direct push-key
+  const direct = await db.ref(`projects/${projectId}`).get().catch(() => null as any);
+  if (direct?.exists?.()) return projectId;
+  // fallback: search by field projectId
   const snap = await db
     .ref("projects")
     .orderByChild("projectId")
@@ -97,6 +103,31 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   const db = getDatabase(getFirebaseAdminApp());
   const key = await findProjectKeyById(id);
   if (!key) return NextResponse.json({ error: "not found" }, { status: 404 });
+  // clean uploaded documents under public/uploads/projects/:id
+  try {
+    const snap = await db.ref(`projects/${key}`).get();
+    if (snap.exists()) {
+      const proj = snap.val() as any;
+      const tasks = (proj?.tasks || {}) as Record<string, any>;
+      const values = Array.isArray(tasks) ? tasks : Object.values(tasks || {});
+      for (const t of values) {
+        const docs = (t?.documents || {}) as Record<string, any>;
+        const dvals = Array.isArray(docs) ? docs : Object.values(docs || {});
+        for (const d of dvals) {
+          const url: string | undefined = typeof d?.url === "string" ? d.url : undefined;
+          if (url && url.startsWith("/uploads/")) {
+            const abs = path.join(process.cwd(), "public", url.replace(/^\/+/, ""));
+            if (fs.existsSync(abs)) {
+              try { fs.unlinkSync(abs); } catch {}
+            }
+          }
+        }
+      }
+      // also try to remove the folder for the project
+      const projDir = path.join(process.cwd(), "public", "uploads", "projects", id);
+      try { if (fs.existsSync(projDir)) fs.rmSync(projDir, { recursive: true, force: true }); } catch {}
+    }
+  } catch {}
   await db.ref(`projects/${key}`).remove();
   return NextResponse.json({ ok: true });
 }

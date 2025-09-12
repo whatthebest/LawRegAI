@@ -22,7 +22,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Loading SOP Central...</p>
+        <p className="mt-4 text-muted-foreground">Loading Compliance Standard & Assurance ...</p>
       </div>
     );
   }

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import type { SOP, SOPStep } from "@/lib/types";
+import type { SOP } from "@/lib/types";
 import {
   Check,
   Clock,
@@ -21,6 +21,7 @@ import {
   FolderKanban,
   Briefcase,
   Bug,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -45,6 +46,16 @@ import { SopTimeline } from "@/components/SopTimeline";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import TimelineDndBoard from "@/components/ui/TimelineDndBoard";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const fetcher = (url: string) =>
   fetch(url, { cache: "no-store" }).then((r) => {
@@ -67,10 +78,23 @@ type ProjectRow = {
   updatedAt: number;
 };
 
-interface Task extends SOPStep {
-  sopTitle: string;
-  sopId: string;
-}
+type DbTask = {
+  taskId: string;
+  stepOrder?: number;
+  title?: string;
+  detail?: string;
+  stepType?: string;
+  nextStepYes?: string;
+  nextStepNo?: string;
+  sla?: number;
+  owner?: string;
+  reviewer?: string;
+  approver?: string;
+  status?: string;
+  projectId: string;
+  projectName?: string;
+  sopId?: string;
+};
 
 export default function TasksPage() {
   const { user } = useAuth();
@@ -90,6 +114,7 @@ export default function TasksPage() {
   const [isCreateWorkOpen, setCreateWorkOpen] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const [selectedSop, setSelectedSop] = useState<SOP | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<{ projectId: string; name: string } | null>(null);
 
   // sentinel non-empty สำหรับ Radix
   const NONE = "__NONE__";
@@ -132,45 +157,83 @@ export default function TasksPage() {
     setSopValue(undefined);
   };
 
-  // ---------- Tasks derived จาก SOPs ----------
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+    try {
+      const res = await fetch(`/api/projects/${projectToDelete.projectId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      await mutate("/api/projects");
+      setProjectToDelete(null);
+    } catch (e: any) {
+      alert(e?.message || "Failed to delete project");
+    }
+  };
+
+  // ---------- Load tasks from all projects (DB) and flatten ----------
+  const activeProjects = useMemo(() => (
+    (projects || []).filter((p) => p.status === "Active")
+  ), [projects]);
+
+  const { data: flatProjectTasks, isLoading: loadingProjectTasks } = useSWR<DbTask[]>(
+    projects
+      ? [
+          "projectTasks",
+          (activeProjects || [])
+            .map((p: any) => p?.projectId || (p as any)?.id || (p as any)?.key || "")
+            .join(","),
+        ]
+      : null,
+    async () => {
+      if (!activeProjects || activeProjects.length === 0) return [] as DbTask[];
+      const list = await Promise.all(
+        activeProjects.map(async (p: any) => {
+          const pid = p?.projectId || p?.id || p?.key;
+          if (!pid) return [] as DbTask[];
+          try {
+            const r = await fetch(`/api/projects/${pid}/tasks`, { cache: "no-store" });
+            if (!r.ok) return [] as DbTask[];
+            const arr = (await r.json()) as any[];
+            return arr.map((t) => ({ ...t, projectId: pid, projectName: p.name, sopId: p.sop })) as DbTask[];
+          } catch {
+            return [] as DbTask[];
+          }
+        })
+      );
+      return list.flat();
+    }
+  );
+
   const tasks = useMemo(() => {
-    if (!user || !sops) return [];
-    const allTasks: Task[] = [];
-    sops.forEach((sop) => {
-      sop.steps.forEach((step) => {
-        if (
-          step.owner === user.email ||
-          step.reviewer === user.email ||
-          step.approver === user.email
-        ) {
-          allTasks.push({ ...step, sopTitle: sop.title, sopId: sop.id });
-        }
-      });
-    });
-    return allTasks;
-  }, [user, sops]);
+    if (!user || !flatProjectTasks) return [] as DbTask[];
+    return flatProjectTasks.filter(
+      (t) => t.owner === user.email || t.reviewer === user.email || t.approver === user.email
+    );
+  }, [user, flatProjectTasks]);
 
-  const toReviewTasks = tasks.filter(
-    (t) => t.reviewer === user?.email && t.status === "Review"
-  );
-  const toApproveTasks = tasks.filter(
-    (t) => t.approver === user?.email && t.status === "Review"
-  );
-  const completedTasks = tasks.filter(
-    (t) =>
-      (t.owner === user?.email ||
-        t.reviewer === user?.email ||
-        t.approver === user?.email) &&
-      t.status === "Approved"
-  );
+  const onProcessTasks = tasks.filter((t) => t.status === "Approved"); // In Progress
+  const toReviewTasks = tasks.filter((t) => t.reviewer === user?.email && t.status === "Review");
+  const toApproveTasks = tasks.filter((t) => t.approver === user?.email && t.status === "ReadyToApprove");
+  const completedTasks = tasks.filter((t) => t.status === "ApprovedFinal" || t.status === "Approved");
 
-  const TaskList = ({
-    tasks,
-    emptyMessage,
-  }: {
-    tasks: Task[];
-    emptyMessage: string;
-  }) => {
+  // ----- Display helpers -----
+  const displayStatus = (status?: string) => {
+    switch (status) {
+      case "Draft":
+        return "Not Started";
+      case "Approved":
+        return "In Progress";
+      case "Review":
+        return "Ready to Review";
+      case "ReadyToApprove":
+        return "Ready to Approve";
+      case "ApprovedFinal":
+        return "Approved";
+      default:
+        return status || "-";
+    }
+  };
+
+  const TaskList = ({ tasks, emptyMessage }: { tasks: DbTask[]; emptyMessage: string }) => {
     if (tasks.length === 0) {
       return (
         <p className="text-muted-foreground text-center py-8">{emptyMessage}</p>
@@ -180,23 +243,23 @@ export default function TasksPage() {
       <div className="space-y-4">
         {tasks.map((task) => (
           <Card
-            key={`${task.id}-${task.sopId}`}
+            key={`${task.projectId}-${task.taskId}`}
             className="shadow-sm hover:shadow-md transition-shadow"
           >
             <CardContent className="p-4 flex items-center justify-between">
               <div className="max-w-prose">
                 <p className="text-sm text-muted-foreground">
-                  SOP: {task.sopTitle}
+                  Project: {task.projectName}
                 </p>
                 <p className="font-semibold">
                   Step {task.stepOrder}: {task.title}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Status: {task.status}
+                  Status: {displayStatus(task.status)}
                 </p>
               </div>
-              <Link href={`/sops/${task.sopId}`} passHref>
-                <Button variant="outline">View SOP</Button>
+              <Link href={`/projects/${task.projectId}`} passHref>
+                <Button variant="outline">View Project</Button>
               </Link>
             </CardContent>
           </Card>
@@ -206,10 +269,10 @@ export default function TasksPage() {
   };
 
   // ---------- Loading / Error ----------
-  if (loadingProjects || loadingSops) {
+  if (loadingProjects || loadingSops || loadingProjectTasks) {
     return (
       <MainLayout>
-        <div className="p-8 text-muted-foreground">Loading projects & SOPs…</div>
+        <div className="p-8 text-muted-foreground">Loading projects & tasks…</div>
       </MainLayout>
     );
   }
@@ -413,8 +476,10 @@ export default function TasksPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(projects ?? []).map((project) => (
-                <Card key={project.projectId}>
+              {(projects ?? []).map((project) => {
+                const slug = (project as any)?.projectId || (project as any)?.id || (project as any)?.key || "";
+                return (
+                <Card key={slug} className="flex flex-col">
                   <CardHeader>
                     <CardTitle className="flex justify-between items-center text-xl">
                       {project.name}
@@ -432,19 +497,30 @@ export default function TasksPage() {
                         "—"}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="mt-auto">
                     <p className="text-sm text-muted-foreground">
                       {project.description}
                     </p>
-                    {/* ใช้ projectId จาก API */}
-                    <Link href={`/projects/${project.projectId}`} passHref>
-                      <Button variant="link" className="px-0 pt-4">
-                        View Project Details &rarr;
+                    <div className="flex items-center justify-between pt-4">
+                      {/* ใช้ projectId จาก API */}
+                      <Link href={`/projects/${slug}`} passHref>
+                        <Button variant="link" className="px-0">
+                          View Project Details &rarr;
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Delete project"
+                        className="text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                        onClick={() => setProjectToDelete({ projectId: String(slug), name: project.name })}
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </Button>
-                    </Link>
+                    </div>
                   </CardContent>
                 </Card>
-              ))}
+              )})}
             </CardContent>
           </Card>
         </TabsContent>
@@ -452,7 +528,10 @@ export default function TasksPage() {
         {/* ----- My Tasks Tab ----- */}
         <TabsContent value="tasks">
           <Tabs defaultValue="review" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="onprocess" className="gap-2">
+                <Briefcase className="w-4 h-4" /> On-Process ({onProcessTasks.length})
+              </TabsTrigger>
               <TabsTrigger value="review" className="gap-2">
                 <Clock className="w-4 h-4" /> To Review ({toReviewTasks.length})
               </TabsTrigger>
@@ -463,6 +542,12 @@ export default function TasksPage() {
                 <Check className="w-4 h-4" /> Completed ({completedTasks.length})
               </TabsTrigger>
             </TabsList>
+            <TabsContent value="onprocess">
+              <TaskList
+                tasks={onProcessTasks}
+                emptyMessage="No in-progress tasks."
+              />
+            </TabsContent>
             <TabsContent value="review">
               <TaskList
                 tasks={toReviewTasks}
@@ -488,6 +573,28 @@ export default function TasksPage() {
           <TimelineDndBoard />
         </TabsContent>
       </Tabs>
+
+      {/* Delete Project Confirm */}
+      <AlertDialog open={!!projectToDelete} onOpenChange={(o) => { if (!o) setProjectToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {projectToDelete?.name ? (
+                <>Project "{projectToDelete.name}" and its data will be removed permanently.</>
+              ) : (
+                <>This action cannot be undone.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteProject}>
+              Delete Project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }

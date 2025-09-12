@@ -86,3 +86,37 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   if (!snap.exists()) return NextResponse.json({ error: "task not found" }, { status: 404 });
   return NextResponse.json({ taskId, ...snap.val() }, { headers: { "Cache-Control": "no-store" } });
 }
+
+/* ----------- DELETE /api/projects/[id]/tasks/[taskId] ----------- */
+export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string; taskId: string }> }) {
+  const { id, taskId } = await ctx.params;
+  const db = getDatabase(getFirebaseAdminApp());
+  const key = await findProjectKeyById(id);
+  if (!key) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  const taskRef = db.ref(`projects/${key}/tasks/${taskId}`);
+  const snap = await taskRef.get();
+  if (!snap.exists()) return NextResponse.json({ error: "task not found" }, { status: 404 });
+
+  // Delete files under public if any document urls exist
+  try {
+    const docs = (snap.child("documents").val() || {}) as Record<string, any>;
+    const values = Array.isArray(docs) ? docs : Object.values(docs);
+    if (values && values.length) {
+      const fs = await import("fs");
+      const path = await import("path");
+      for (const d of values) {
+        const url: string | undefined = typeof d?.url === "string" ? d.url : undefined;
+        if (url && url.startsWith("/uploads/")) {
+          const abs = path.join(process.cwd(), "public", url.replace(/^\/+/, ""));
+          if (fs.existsSync(abs)) {
+            try { fs.unlinkSync(abs); } catch {}
+          }
+        }
+      }
+    }
+  } catch {}
+
+  await taskRef.remove();
+  return NextResponse.json({ ok: true });
+}

@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Edit, User, Clock, Shield, CheckCircle2, BadgeCheck } from "lucide-react";
+import { Edit, User, Clock, Shield, CheckCircle2, BadgeCheck, Trash2 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
   DialogDescription, DialogClose,
@@ -165,6 +165,7 @@ export default function ProjectDetailPage() {
   const [isFinishOpen, setIsFinishOpen] = useState(false);
   const [showDoneAnim, setShowDoneAnim] = useState(false);
   const [savingTask, setSavingTask] = useState<Record<string, boolean>>({});
+  const [taskToDelete, setTaskToDelete] = useState<TaskWithDocs | null>(null);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
 
   const {
@@ -426,6 +427,23 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const confirmDeleteTask = async () => {
+    if (!taskToDelete || !taskToDelete.stepId) return;
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/tasks/${encodeURIComponent(taskToDelete.stepId)}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      setTasks((prev) => prev.filter((t) => t._tid !== taskToDelete!._tid));
+      setTaskToDelete(null);
+      await mutate(`/api/projects/${projectId}/tasks`);
+    } catch (e: any) {
+      alert(e?.message || "Failed to delete task");
+    }
+  };
+
+
   // ------- Docs (client-only mock) -------
   const getId = () =>
     (globalThis as any)?.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
@@ -530,6 +548,26 @@ export default function ProjectDetailPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Delete Task Confirm */}
+        <AlertDialog open={!!taskToDelete} onOpenChange={(o) => { if (!o) setTaskToDelete(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this task?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. The task and its documents will be removed from this project.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={confirmDeleteTask}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Project deletion moved to Tasks page */}
 
         {/* Done animation */}
         {showDoneAnim && (
@@ -642,28 +680,6 @@ export default function ProjectDetailPage() {
                 </DialogContent>
               </Dialog>
 
-              {/* Add Task (when no SOP) */}
-              {!linkedSopId && (
-                <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="ml-2">Add Task</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add Task</DialogTitle>
-                      <DialogDescription>Create a task for this project (no SOP).</DialogDescription>
-                    </DialogHeader>
-
-                    <AddTaskForm
-                      onCreated={() => {
-                        setIsAddTaskOpen(false);
-                        mutate(`/api/projects/${projectId}/tasks`);
-                      }}
-                      projectId={projectId}
-                    />
-                  </DialogContent>
-                </Dialog>
-              )}
             </CardHeader>
 
             {/* ===== Tasks ===== */}
@@ -748,25 +764,94 @@ export default function ProjectDetailPage() {
                             )}
                           </div>
 
-                          <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs pt-2">
-                            <div className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> SLA: {task.sla} days</div>
-                            <div className="flex items-center gap-1.5"><User className="w-3 h-3" /> Owner: {task.owner}</div>
-                            <div className="flex items-center gap-1.5"><Shield className="w-3 h-3" /> Reviewer: {task.reviewer}</div>
+                          <div className="flex items-center justify-between pt-2 gap-2">
+                            <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs">
+                              <div className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> SLA: {task.sla} days</div>
+                              <div className="flex items-center gap-1.5"><User className="w-3 h-3" /> Owner: {task.owner}</div>
+                              <div className="flex items-center gap-1.5"><Shield className="w-3 h-3" /> Reviewer: {task.reviewer}</div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Delete task"
+                              className="text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                              onClick={() => setTaskToDelete(task)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
                       </div>
                     </Card>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    {linkedSopId
-                      ? sopErr
-                        ? "Failed to load SOP."
-                        : "This SOP has no steps defined."
-                      : "No tasks yet. Use Add Task to create one."}
-                  </p>
+                  <div className="py-10 flex flex-col items-center gap-4 text-center text-muted-foreground">
+                    <p className="text-sm">
+                      {linkedSopId
+                        ? sopErr
+                          ? "Failed to load SOP."
+                          : "This SOP has no steps defined."
+                        : "No tasks yet. Create your first task."}
+                    </p>
+                    {!linkedSopId && (
+                      <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className="w-full max-w-[640px] bg-muted text-foreground hover:bg-blue-50 hover:text-blue-700"
+                          >
+                            + Add Task
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Add Task</DialogTitle>
+                            <DialogDescription>Create a task for this project (no SOP).</DialogDescription>
+                          </DialogHeader>
+                          <AddTaskForm
+                            onCreated={() => {
+                              setIsAddTaskOpen(false);
+                              mutate(`/api/projects/${projectId}/tasks`);
+                            }}
+                            projectId={projectId}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
                 )}
               </div>
+
+              {/* Add Task at bottom (full-width) when no SOP and there are tasks already */}
+              {!linkedSopId && tasks.length > 0 && (
+                <div className="pt-2">
+                  <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="w-full bg-muted text-foreground hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        + Add Task
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Task</DialogTitle>
+                        <DialogDescription>Create a task for this project (no SOP).</DialogDescription>
+                      </DialogHeader>
+
+                      <AddTaskForm
+                        onCreated={() => {
+                          setIsAddTaskOpen(false);
+                          mutate(`/api/projects/${projectId}/tasks`);
+                        }}
+                        projectId={projectId}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
