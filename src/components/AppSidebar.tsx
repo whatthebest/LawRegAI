@@ -118,9 +118,9 @@ export default function AppSidebar() {
             <AvatarFallback>{userInitials}</AvatarFallback>
           </Avatar>
 
-          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <p className="text-sm font-medium leading-none">{user?.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">
+          <div className="flex flex-col group-data-[collapsible=icon]:hidden flex-1 min-w-0">
+            <p className="text-sm font-medium leading-none truncate">{user?.name}</p>
+            <p className="text-xs leading-none text-muted-foreground truncate">
               {user?.email}
             </p>
           </div>
