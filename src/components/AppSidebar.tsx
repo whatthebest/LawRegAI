@@ -69,8 +69,13 @@ export default function AppSidebar() {
       <SidebarContent>
         <SidebarMenu>
         {navLinks
-                .filter(link => !link.roles ||
-                  (user?.systemRole && link.roles.includes(user.systemRole)))
+                .filter(link => {
+                  if (!link.roles) return true;
+                  const norm = (s: string | undefined) => (s ?? "").toLowerCase().replace(/[^a-z]/g, "");
+                  const userRole = norm(user?.systemRole as string);
+                  // accept e.g. "regtech team", "RegTech-Team", etc.
+                  return link.roles.some(r => norm(r) === userRole);
+                })
           .map(link => (
             <SidebarMenuItem key={link.href}>
               {/* IMPORTANT: asChild + exactly ONE child element */}

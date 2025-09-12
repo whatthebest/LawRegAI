@@ -25,12 +25,19 @@ export async function requireSession(): Promise<Decoded> {
 
 export async function requireAdminLike(decoded: Decoded): Promise<{ ok: boolean }> {
   const claims: any = decoded ?? {};
+
+  const isAdminRole = (r: unknown) => {
+    if (!r) return false;
+    const norm = String(r).toLowerCase().replace(/[^a-z]/g, '');
+    return norm === 'regtechteam' || norm === 'manager';
+  };
+
   const claimRole = claims.systemRole ?? claims.role;
-  if (claims.admin === true || claimRole === 'RegTechTeam' || claimRole === 'Manager') {
+  if (claims.admin === true || isAdminRole(claimRole)) {
     return { ok: true };
   }
 
   const snap = await adminDb().ref(`users/${decoded.uid}`).get();
   const sysRole = snap.val()?.systemRole;
-  return { ok: sysRole === 'RegTechTeam' || sysRole === 'Manager' };
+  return { ok: isAdminRole(sysRole) };
 }

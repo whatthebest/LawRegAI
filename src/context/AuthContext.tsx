@@ -20,16 +20,14 @@ type MaybeRole = string | undefined | null;
 
 function normalizeRole(raw: MaybeRole): SystemRole | undefined {
   if (!raw) return undefined;
-  const s = String(raw).trim().toLowerCase();
+  // Tolerant normalization: keep only letters, lowercased
+  const norm = String(raw).toLowerCase().replace(/[^a-z]/g, "");
   const map: Record<string, SystemRole> = {
-    "regtechteam": "RegTechTeam",
-    "manager": "Manager",
-    "user": "User",
-    // optional tolerant aliases (remove if you prefer strict data hygiene):
-    "regtechtem": "RegTechTeam",
-    "regtech tem": "RegTechTeam",
+    regtechteam: "RegTechTeam",
+    manager: "Manager",
+    user: "User",
   };
-  return map[s];
+  return map[norm];
 }
 
 async function loadProfileRTDB(u: FirebaseUser) {

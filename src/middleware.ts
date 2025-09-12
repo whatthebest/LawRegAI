@@ -2,7 +2,8 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-const COOKIE = "session";
+// Accept any of these cookie names as a valid session indicator
+const COOKIE_NAMES = ["__session", "session", "id_token"] as const;
 const PROTECTED = ["/admin"];
 
 export function middleware(req: NextRequest) {
@@ -12,7 +13,7 @@ export function middleware(req: NextRequest) {
   );
   if (!needsAuth) return NextResponse.next();
 
-  const hasSession = Boolean(req.cookies.get(COOKIE)?.value);
+  const hasSession = COOKIE_NAMES.some((name) => Boolean(req.cookies.get(name)?.value));
   if (hasSession) return NextResponse.next();
 
   const url = req.nextUrl.clone();
@@ -22,5 +23,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin", "/admin/:path*"],
 };

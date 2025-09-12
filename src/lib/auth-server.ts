@@ -2,12 +2,16 @@
 import { cookies } from "next/headers";
 import { adminAuth } from "@/lib/firebase-admin";
 
-const COOKIE_NAME = "session"; // change if your cookie name is different
+const COOKIE_NAMES = ["__session", "session", "id_token"]; // accept any of these
 
 export async function getSessionUser() {
   // Next 15: cookies() is async; Next 14: sync. `await` works in both.
   const store = await cookies();
-  const token = store.get(COOKIE_NAME)?.value;
+  const token =
+    store.get("__session")?.value ||
+    store.get("session")?.value ||
+    store.get("id_token")?.value ||
+    undefined;
   if (!token) return null;
 
   try {
