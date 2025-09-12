@@ -84,6 +84,15 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   if (typeof body.status === "string" && body.status) allowed.status = body.status;
   if (typeof body.title === "string") allowed.title = body.title;
   if (typeof body.detail === "string") allowed.detail = body.detail;
+  if (typeof body.owner === "string") allowed.owner = body.owner;
+  if (typeof body.reviewer === "string") allowed.reviewer = body.reviewer;
+  if (typeof body.approver === "string") allowed.approver = body.approver;
+  if (typeof body.stepType === "string") {
+    allowed.stepType = body.stepType === "Decision" ? "Decision" : "Sequence";
+  }
+  if (typeof body.nextStepYes === "string") allowed.nextStepYes = body.nextStepYes;
+  if (typeof body.nextStepNo === "string") allowed.nextStepNo = body.nextStepNo;
+  if (typeof body.sla === "number" && !Number.isNaN(body.sla)) allowed.sla = body.sla;
   if (Object.keys(allowed).length === 0)
     return NextResponse.json({ error: "no updatable fields" }, { status: 400 });
   allowed.updatedAt = Date.now();

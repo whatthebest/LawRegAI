@@ -167,6 +167,8 @@ export default function ProjectDetailPage() {
   const [savingTask, setSavingTask] = useState<Record<string, boolean>>({});
   const [taskToDelete, setTaskToDelete] = useState<TaskWithDocs | null>(null);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskWithDocs | null>(null);
 
   const {
     control,
@@ -587,6 +589,25 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </div>
+      {/* Edit Task Dialog */}
+      <Dialog open={isEditTaskOpen} onOpenChange={(o) => { if (!o) { setIsEditTaskOpen(false); setEditingTask(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+            <DialogDescription>Update task details for this project.</DialogDescription>
+          </DialogHeader>
+          {editingTask && (
+            <EditTaskForm
+              initial={editingTask}
+              projectId={projectId}
+              onClose={() => { setIsEditTaskOpen(false); setEditingTask(null); }}
+              onSaved={async () => {
+                await mutate(`/api/projects/${projectId}/tasks`);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="grid md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-8">
@@ -688,9 +709,16 @@ export default function ProjectDetailPage() {
                 {tasks.length > 0 ? (
                   tasks.map((task) => (
                     <Card key={task._tid} className="p-4 pt-10 relative">
-                      <Badge variant={getStatusBadgeVariant(task.status)} className="absolute top-3 left-3">
-                        {getStatusBadgeText(task.status)}
-                      </Badge>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="absolute top-3 left-3 h-7 px-2"
+                        aria-label="Edit task"
+                        onClick={() => { setEditingTask(task); setIsEditTaskOpen(true); }}
+                      >
+                        <Edit className="w-3 h-3 mr-1" /> Edit
+                      </Button>
 
                       <div className="flex items-start gap-4">
                         <div className="flex-1 space-y-2 min-w-0">
@@ -770,16 +798,18 @@ export default function ProjectDetailPage() {
                               <div className="flex items-center gap-1.5"><User className="w-3 h-3" /> Owner: {task.owner}</div>
                               <div className="flex items-center gap-1.5"><Shield className="w-3 h-3" /> Reviewer: {task.reviewer}</div>
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              aria-label="Delete task"
-                              className="text-muted-foreground hover:text-red-600 hover:bg-red-50"
-                              onClick={() => setTaskToDelete(task)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label="Delete task"
+                                className="text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                onClick={() => setTaskToDelete(task)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1008,6 +1038,148 @@ function AddTaskForm({ projectId, onCreated }: { projectId: string; onCreated: (
 
       <div className="flex justify-end gap-2">
         <Button type="submit" disabled={isSubmitting}>Create Task</Button>
+      </div>
+    </form>
+  );
+}
+
+// ----- Edit Task Form Component -----
+function EditTaskForm({ initial, projectId, onClose, onSaved }: {
+  initial: TaskWithDocs;
+  projectId: string;
+  onClose: () => void;
+  onSaved: () => Promise<void> | void;
+}) {
+  const { register, handleSubmit, control, watch, formState: { isSubmitting }, reset } = useForm<any>({
+    defaultValues: {
+      title: initial.title || "",
+      detail: initial.detail || "",
+      stepType: initial.stepType || "Sequence",
+      nextStepYes: (initial as any).nextStepYes || "",
+      nextStepNo: (initial as any).nextStepNo || "",
+      sla: initial.sla || 1,
+      owner: initial.owner || "",
+      reviewer: initial.reviewer || "",
+      approver: initial.approver || "",
+    },
+  });
+
+  const stepType = watch("stepType");
+
+  const onSubmit = async (data: any) => {
+    const payload: any = {
+      title: String(data.title || ""),
+      detail: String(data.detail || ""),
+      stepType: data.stepType === "Decision" ? "Decision" : "Sequence",
+      sla: Number(data.sla) || 1,
+      owner: String(data.owner || ""),
+      reviewer: String(data.reviewer || ""),
+      approver: String(data.approver || ""),
+    };
+    if (payload.stepType === "Decision") {
+      if (data.nextStepYes) payload.nextStepYes = String(data.nextStepYes);
+      if (data.nextStepNo) payload.nextStepNo = String(data.nextStepNo);
+    } else {
+      payload.nextStepYes = "";
+      payload.nextStepNo = "";
+    }
+    const res = await fetch(`/api/projects/${projectId}/tasks/${encodeURIComponent((initial.stepId as string) || initial._tid)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      let msg = `Update failed (${res.status})`;
+      try { const j = await res.json(); if (j?.error) msg = j.error; } catch {}
+      alert(msg);
+      return;
+    }
+    await onSaved();
+    onClose();
+  };
+
+  useEffect(() => {
+    reset({
+      title: initial.title || "",
+      detail: initial.detail || "",
+      stepType: initial.stepType || "Sequence",
+      nextStepYes: (initial as any).nextStepYes || "",
+      nextStepNo: (initial as any).nextStepNo || "",
+      sla: initial.sla || 1,
+      owner: initial.owner || "",
+      reviewer: initial.reviewer || "",
+      approver: initial.approver || "",
+    });
+  }, [initial, reset]);
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="et-title">Title</Label>
+        <Input id="et-title" {...register("title", { required: true })} />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="et-detail">Detail</Label>
+        <Textarea id="et-detail" {...register("detail")} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Step Type</Label>
+          <Controller
+            control={control}
+            name="stepType"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select step type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sequence">Sequence</SelectItem>
+                  <SelectItem value="Decision">Decision</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="et-sla">SLA (days)</Label>
+          <Input id="et-sla" type="number" min={0} {...register("sla", { valueAsNumber: true })} />
+        </div>
+      </div>
+
+      {stepType === "Decision" && (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="et-next-yes">Next step (Yes)</Label>
+            <Input id="et-next-yes" {...register("nextStepYes")} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="et-next-no">Next step (No)</Label>
+            <Input id="et-next-no" {...register("nextStepNo")} />
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="et-owner">Owner</Label>
+          <Input id="et-owner" placeholder="owner@email" {...register("owner")} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="et-reviewer">Reviewer</Label>
+          <Input id="et-reviewer" placeholder="reviewer@email" {...register("reviewer")} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="et-approver">Approver</Label>
+          <Input id="et-approver" placeholder="approver@email" {...register("approver")} />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button type="submit" disabled={isSubmitting}>Save Changes</Button>
       </div>
     </form>
   );

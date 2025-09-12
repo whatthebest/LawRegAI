@@ -210,10 +210,18 @@ export default function TasksPage() {
     );
   }, [user, flatProjectTasks]);
 
-  const onProcessTasks = tasks.filter((t) => t.status === "Approved"); // In Progress
-  const toReviewTasks = tasks.filter((t) => t.reviewer === user?.email && t.status === "Review");
-  const toApproveTasks = tasks.filter((t) => t.approver === user?.email && t.status === "ReadyToApprove");
-  const completedTasks = tasks.filter((t) => t.status === "ApprovedFinal" || t.status === "Approved");
+  // Normalize groups to be mutually exclusive
+  const onProcessTasks = tasks.filter(
+    (t) => t.status === "Approved" || t.status === "In Progress"
+  );
+  const toReviewTasks = tasks.filter(
+    (t) => t.reviewer === user?.email && t.status === "Review"
+  );
+  const toApproveTasks = tasks.filter(
+    (t) => t.approver === user?.email && t.status === "ReadyToApprove"
+  );
+  // Completed should only include final approval, not in-progress
+  const completedTasks = tasks.filter((t) => t.status === "ApprovedFinal");
 
   // ----- Display helpers -----
   const displayStatus = (status?: string) => {

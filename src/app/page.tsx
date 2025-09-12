@@ -6,7 +6,7 @@ import MainLayout from "@/components/MainLayout";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { ListChecks, CheckSquare, UserCog, Bot, FolderKanban, Clock, FileCheck2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { SOP, SOPStep } from "@/lib/types";
+import type { SOP } from "@/lib/types";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import useSWR from "swr";
@@ -16,10 +16,22 @@ const fetcher = (url: string) => fetch(url).then((r) => {
   return r.json();
 });
 
-interface Task extends SOPStep {
-  sopTitle: string;
-  sopId: string;
-}
+type DbTask = {
+  taskId: string;
+  stepOrder?: number;
+  title?: string;
+  detail?: string;
+  stepType?: string;
+  nextStepYes?: string;
+  nextStepNo?: string;
+  sla?: number;
+  owner?: string;
+  reviewer?: string;
+  approver?: string;
+  status?: string;
+  projectId: string;
+  projectName?: string;
+};
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -31,37 +43,46 @@ export default function HomePage() {
   const projects = Array.isArray(projectsData) ? projectsData : [];
   const sops = Array.isArray(sopsData) ? sopsData : [];
 
-  const { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview } = useMemo(() => {
-    if (!user) {
-      return {
-        toReviewTasks: [],
-        toApproveTasks: [],
-        projectsInProgress: [],
-        sopsInReview: [],
-      };
+  // Build My Action Items from DB tasks of Active projects
+  const activeProjects = useMemo(() => (
+    (projects || []).filter((p: any) => p.status === "Active")
+  ), [projects]);
+
+  const { data: flatTasks } = useSWR<DbTask[]>(
+    activeProjects && activeProjects.length > 0
+      ? ["home-projectTasks", activeProjects.map((p: any) => p?.projectId || p?.id || p?.key || "").join(",")]
+      : null,
+    async () => {
+      const list = await Promise.all(
+        activeProjects.map(async (p: any) => {
+          const pid = p?.projectId || p?.id || p?.key;
+          if (!pid) return [] as DbTask[];
+          try {
+            const r = await fetch(`/api/projects/${pid}/tasks`, { cache: "no-store" });
+            if (!r.ok) return [] as DbTask[];
+            const arr = (await r.json()) as any[];
+            return arr.map((t) => ({ ...t, projectId: pid, projectName: p.name })) as DbTask[];
+          } catch {
+            return [] as DbTask[];
+          }
+        })
+      );
+      return list.flat();
     }
+  );
 
-    const allTasks: Task[] = [];
-    const sopsInReview: SOP[] = [];
+  const { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview } = useMemo(() => {
+    const sopsInReview: SOP[] = (sops || []).filter((s: SOP) => s.status === "In Review");
+    const projectsInProgress = (projects || []).filter((p: any) => (
+      p.status === "Active" || p.status === "In Progress"
+    ));
 
-    sops.forEach((sop: SOP) => {
-      if (sop.status === "In Review") {
-        sopsInReview.push(sop);
-      }
-      sop.steps?.forEach((step: SOPStep) => {
-        if (step.reviewer === user.email || step.approver === user.email) {
-          allTasks.push({ ...step, sopTitle: sop.title, sopId: sop.id });
-        }
-      });
-    });
-
-    const toReviewTasks = allTasks.filter((task) => task.reviewer === user?.email && task.status === "Review");
-    const toApproveTasks = allTasks.filter((task) => task.approver === user?.email && task.status === "Review");
-
-    const projectsInProgress = projects.filter((p: any) => p.status === "In Progress");
+    const mine = (flatTasks || []).filter((t) => t.reviewer === user?.email || t.approver === user?.email);
+    const toReviewTasks = mine.filter((t) => t.reviewer === user?.email && t.status === "Review");
+    const toApproveTasks = mine.filter((t) => t.approver === user?.email && t.status === "ReadyToApprove");
 
     return { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview };
-  }, [user, projects, sops]);
+  }, [user, projects, sops, flatTasks]);
 
   if (projectsLoading || sopsLoading) {
     return (
@@ -142,8 +163,10 @@ export default function HomePage() {
             <CardDescription>A list of your recent projects.</CardDescription>
           </CardHeader>
           <CardContent className="grid md:grid-cols-2 gap-4">
-          {projects.slice(0, 4).map((project, index) => (
-            <Card key={`${project.id}-${index}`}>
+          {projects.slice(0, 4).map((project: any, index: number) => {
+            const slug = project?.projectId || project?.id || project?.key || String(index);
+            return (
+            <Card key={`${slug}-${index}`}>
               <CardHeader>
                 <CardTitle className="flex justify-between items-center text-lg">
                   {project.name}
@@ -161,12 +184,12 @@ export default function HomePage() {
                 </p>
               </CardContent>
               <CardFooter>
-                <Link href={`/projects/${project.id}`} passHref>
+                <Link href={`/projects/${slug}`} passHref>
                   <Button variant="outline" size="sm" className="w-full">View Project</Button>
                 </Link>
               </CardFooter>
             </Card>
-          ))}
+          )})}
           </CardContent>
            <CardFooter>
               <Link href="/tasks" passHref className="w-full">
@@ -187,10 +210,10 @@ export default function HomePage() {
                 <h4 className="text-sm font-semibold mb-2">To Review ({toReviewTasks.length})</h4>
                  {toReviewTasks.length > 0 ? (
                   <div className="space-y-2">
-                    {toReviewTasks.slice(0, 2).map(task => (
-                      <Link href={`/sops/${task.sopId}`} key={`${task.id}-${task.sopId}`} className="block">
+                    {toReviewTasks.slice(0, 2).map((task: any) => (
+                      <Link href={`/projects/${task.projectId}`} key={`${task.projectId}-${task.taskId}`} className="block">
                         <div className="p-3 border rounded-md hover:bg-muted/50 transition-colors">
-                            <p className="text-xs text-muted-foreground">{task.sopTitle}</p>
+                            <p className="text-xs text-muted-foreground">{task.projectName}</p>
                             <p className="font-medium text-sm truncate">Step {task.stepOrder}: {task.title}</p>
                         </div>
                       </Link>
@@ -204,10 +227,10 @@ export default function HomePage() {
                 <h4 className="text-sm font-semibold mb-2">To Approve ({toApproveTasks.length})</h4>
                  {toApproveTasks.length > 0 ? (
                   <div className="space-y-2">
-                    {toApproveTasks.slice(0, 2).map(task => (
-                      <Link href={`/sops/${task.sopId}`} key={`${task.id}-${task.sopId}`} className="block">
+                    {toApproveTasks.slice(0, 2).map((task: any) => (
+                      <Link href={`/projects/${task.projectId}`} key={`${task.projectId}-${task.taskId}`} className="block">
                          <div className="p-3 border rounded-md hover:bg-muted/50 transition-colors">
-                           <p className="text-xs text-muted-foreground">{task.sopTitle}</p>
+                           <p className="text-xs text-muted-foreground">{task.projectName}</p>
                            <p className="font-medium text-sm truncate">Step {task.stepOrder}: {task.title}</p>
                         </div>
                       </Link>
@@ -219,11 +242,11 @@ export default function HomePage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Link href="/tasks" passHref className="w-full">
+              {/* <Link href="/tasks" passHref className="w-full">
                 <Button variant="ghost" className="w-full gap-2">
                     Go to Work Tracker <ArrowRight className="w-4 h-4" />
                 </Button>
-              </Link>
+              </Link> */}
             </CardFooter>
         </Card>
       </div>
