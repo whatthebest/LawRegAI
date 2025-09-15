@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { cert, getApps, initializeApp, getApp, type App } from "firebase-admin/app";
 import { getDatabase, type DataSnapshot } from "firebase-admin/database";
+import { getSessionUser } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -132,15 +133,23 @@ export async function POST(req: Request) {
     // 4) Create SOP record
     const sopId = `sop-${String(newIndex).padStart(3, "0")}`;
     const newRef = db.ref("sops").push();
+    const me = await getSessionUser();
     await newRef.set({
       ...payload,
       sopId,
       sopIndex: newIndex,
+      status: "In Review",
       createdAt: Date.now(),
     });
 
     return NextResponse.json(
-      { message: "SOP created successfully", sopId, sopIndex: newIndex, key: newRef.key },
+      {
+        message: "SOP created successfully",
+        sopId,
+        sopIndex: newIndex,
+        status: "In Review",
+        key: newRef.key,
+      },
       { status: 201 }
     );
   } catch (error: any) {

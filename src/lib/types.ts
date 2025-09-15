@@ -14,22 +14,30 @@ export type SOPStatus = 'Draft' | 'In Review' | 'Approved' | 'Archived';
 export type SOPDepartment = 'Operations' | 'Engineering' | 'HR' | 'Marketing' | 'Customer Support' | 'IT';
 
 export interface SOP {
-  id: string; // The unique ID for the object (e.g., sop-001)
-  sopId: string; // The human-readable ID (e.g., SOP-001)
+  id: string;
+  sopId: string;
   title: string;
   description: string;
   department: SOPDepartment;
   cluster?: string;
   group?: string;
   section?: string;
-  responsiblePerson: string; // Corresponds to the form field for submission
-  owner: string; // The official owner, for display
+
+  // These two are sometimes missing at creation → make optional
+  responsiblePerson?: string;          // ← was required
+  owner?: string;                      // keep optional if not always set
+
+  // Optional submitter for Manager Review tab fallback
+  submittedBy?: string;                // ← ADD THIS
+
   version: string;
-  sla: number; // in days
-  createdAt: string; // ISO date string
-  updatedAt: string; // ISO date string
+  sla: number;                         // days
+
+  createdAt: string;                   // ISO
+  updatedAt?: string;                  // ← make optional; PATCH will set it
+
   status: SOPStatus;
-  attachments: any[]; // Using 'any' for simplicity with FileUpload component
+  attachments: any[];
   steps: SOPStep[];
 }
 

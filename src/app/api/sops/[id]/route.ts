@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { getDatabase } from "firebase-admin/database";
 import { cert, getApps, initializeApp, getApp, type App } from "firebase-admin/app";
+import { requireSession, requireAdminLike } from "@/lib/authz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,5 +81,85 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
     return NextResponse.json({ error: "not found" }, { status: 404 });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || "unexpected error" }, { status: 500 });
+  }
+}
+
+/* ---------- PATCH: update status of a SOP ---------- */
+export async function PATCH(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const decoded = await requireSession();
+    const authz = await requireAdminLike(decoded);
+    if (!authz.ok) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+
+    const { id } = await context.params;
+    const body = await req.json().catch(() => ({}));
+    const status: any = body?.status;
+    if (status !== "Approved" && status !== "Draft") {
+      return NextResponse.json({ error: "invalid_status" }, { status: 400 });
+    }
+
+    const db = getDatabase(getFirebaseAdminApp());
+    const now = Date.now();
+
+    const updateAndReturn = async (key: string) => {
+      await db.ref(`sops/${key}`).update({ status, updatedAt: now });
+      const snap = await db.ref(`sops/${key}`).get();
+      const v = snap.val();
+      return NextResponse.json(
+        {
+          key,
+          id: v?.sopId ?? v?.id ?? key,
+          title: String(v?.title ?? ""),
+          steps: normalizeSteps(v?.steps),
+          ...v,
+        },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    };
+
+    // 1) try direct key
+    const direct = await db.ref(`sops/${id}`).get();
+    if (direct.exists()) {
+      return updateAndReturn(id);
+    }
+
+    // 2) search by sopId
+    const bySopId = await db
+      .ref("sops")
+      .orderByChild("sopId")
+      .equalTo(id)
+      .limitToFirst(1)
+      .get();
+    if (bySopId.exists()) {
+      const [key] = Object.keys(bySopId.val());
+      return updateAndReturn(key);
+    }
+
+    // 3) search by id field
+    const byId = await db
+      .ref("sops")
+      .orderByChild("id")
+      .equalTo(id)
+      .limitToFirst(1)
+      .get();
+    if (byId.exists()) {
+      const [key] = Object.keys(byId.val());
+      return updateAndReturn(key);
+    }
+
+    return NextResponse.json({ error: "not found" }, { status: 404 });
+  } catch (err: any) {
+    if (err?.message === "NO_SESSION") {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    return NextResponse.json(
+      { error: err?.message || "unexpected error" },
+      { status: 500 }
+    );
   }
 }

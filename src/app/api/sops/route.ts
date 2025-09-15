@@ -19,7 +19,9 @@ function getFirebaseAdminApp(): App {
 }
 
 /* ---------- GET: list all SOPs ---------- */
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get("status");
   const db = getDatabase(getFirebaseAdminApp());
   const snap = await db.ref("sops").get();
 
@@ -38,5 +40,6 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json(out, { headers: { "Cache-Control": "no-store" } });
+  const filtered = status ? out.filter((sop) => sop.status === status) : out;
+  return NextResponse.json(filtered, { headers: { "Cache-Control": "no-store" } });
 }
