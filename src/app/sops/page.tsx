@@ -64,34 +64,85 @@ function SopsPageContent() {
     return () => { mountedRef.current = false; };
   }, []);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch both lists in parallel from your backend:
-        const [approved, inReview] = await Promise.all([
-          fetchSopsByStatus('Approved'),
-          fetchSopsByStatus('In Review'),
-        ]);
+  // REPLACE your useEffect(() => { const load = async () => { ... } }, []) with THIS:
 
-        if (!mountedRef.current) return;
+useEffect(() => {
+  let alive = true;
 
-        // Optional sort: latest first
-        const byCreatedDesc = (a: any, b: any) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  // ❶ A small watchdog so the UI can’t stay in loading forever
+  //    (fires if something unexpected blocks the finally)
+  const watchdog = setTimeout(() => {
+    if (!alive) return;
+    console.error("watchdog: forcing loader off after 12s");
+    setError((e) => e ?? "Request took too long. Please try again.");
+    setLoading(false);
+  }, 12_000);
 
-        setSops([...approved].sort(byCreatedDesc));
-        setReviewSops([...inReview].sort(byCreatedDesc));
-      } catch (err: any) {
-        if (!mountedRef.current) return;
-        setError(err?.message || 'Failed to load SOPs');
-      } finally {
-        if (mountedRef.current) setLoading(false);
+  (async () => {
+    setLoading(true);
+    setError(null);
+    console.log("[SOPs] load start");
+
+    try {
+      // ❷ Use allSettled so one failing status doesn't block the rest
+      const results = await Promise.allSettled([
+        fetchSopsByStatus("Approved"),
+        fetchSopsByStatus("In Review"),
+      ]);
+
+      if (!alive) return;
+
+      const ok: SOP[] = [];
+      const errs: string[] = [];
+
+      results.forEach((r, idx) => {
+        const tag = idx === 0 ? "Approved" : "In Review";
+        if (r.status === "fulfilled") {
+          ok.push(...r.value);
+        } else {
+          const msg =
+            r.reason instanceof Error ? r.reason.message : String(r.reason);
+          errs.push(`${tag}: ${msg}`);
+        }
+      });
+
+      // Optional sort: latest first
+      ok.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      setSops(ok.filter(s => s.status === "Approved"));
+      setReviewSops(ok.filter(s => s.status === "In Review"));
+
+      if (errs.length) {
+        console.warn("[SOPs] partial failures:", errs.join(" | "));
+        setError(`Some sections failed — ${errs.join(" | ")}`);
       }
-    };
-    load();
-  }, []);
+    } catch (e) {
+      if (!alive) return;
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      console.error("[SOPs] load failed:", msg);
+      setError(
+        msg.toLowerCase().includes("timed out")
+          ? "Unable to load SOPs. Please try again."
+          : msg
+      );
+    } finally {
+      if (alive) {
+        console.log("[SOPs] load finally — clearing loader");
+        clearTimeout(watchdog);
+        setLoading(false); // ← guarantees the spinner clears
+      }
+    }
+  })();
+
+  return () => {
+    alive = false;
+    clearTimeout(watchdog);
+  };
+}, []);
+
 
   const filteredSops = useMemo(() => {
     return sops
@@ -154,11 +205,16 @@ function SopsPageContent() {
       if (newStatus === 'Approved') {
         setSops(prev => prev.filter(x => (x.sopId ?? x.id) !== sopId));
       }
+      const description = err?.message?.toLowerCase().includes('timed out')
+      ? 'Unable to update SOP. Please try again.'
+      : err?.message || 'Could not update SOP status.';
       toast({
         title: 'Update failed',
-        description: err?.message || 'Could not update SOP status.',
+        description,
         variant: 'destructive',
       });
+            // Optional: log to monitoring/analytics service
+            console.error('Error updating SOP status', err);
     }
   };
 
@@ -425,9 +481,6 @@ function SopsPageContent() {
 }
 
 export default function SopsListPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <SopsPageContent />
-    </Suspense>
-  );
+  return <SopsPageContent />;
 }
+

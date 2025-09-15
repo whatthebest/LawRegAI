@@ -1,7 +1,9 @@
+// src/app/sops/[id]/page.tsx
 
 "use client";
 
-import { notFound } from 'next/navigation';
+
+
 import MainLayout from '@/components/MainLayout';
 import { SopTimeline } from '@/components/SopTimeline';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,6 +15,17 @@ import type { SOP, SOPStatus } from '@/lib/types';
 import { format } from 'date-fns';
 import { Check, MessageSquare, Share2, FileDown, Edit } from 'lucide-react';
 import Link from 'next/link';
+
+
+
+
+// Add this helper near the top of the file
+function fmtDate(v?: string) {
+  if (!v) return "—";
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? "—" : format(d, "MMM d, yyyy");
+}
+
 
 // Helper to find the SOP from mock data
 const getSop = (id: string): SOP | undefined => {
@@ -36,7 +49,11 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
 
   // If no SOP is found for the given ID, show a 404 page.
   if (!sop) {
-    notFound();
+    return (
+      <MainLayout>
+        <div className="p-6 text-red-500">SOP not found.</div>
+      </MainLayout>
+    );
   }
 
   return (
@@ -51,7 +68,7 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span>Department: {sop.department}</span>
                     <Separator orientation="vertical" className="h-4" />
-                    <span>Created on: {format(new Date(sop.createdAt), 'MMMM d, yyyy')}</span>
+                    <span>Created on: {fmtDate(sop.createdAt)}</span>
                 </div>
             </div>
             <div className="flex items-center gap-2">
@@ -74,7 +91,7 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                 <CardDescription>Step-by-step process and responsible parties.</CardDescription>
               </CardHeader>
               <CardContent>
-                <SopTimeline steps={sop.steps} />
+                <SopTimeline steps={sop.steps ?? []} />
               </CardContent>
             </Card>
 
@@ -103,7 +120,7 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                     <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground pt-1">
-                  Last updated on {format(new Date(sop.updatedAt), 'MMM d, yyyy')}
+                    Last updated on {fmtDate(sop.updatedAt)}
                 </p>
               </CardContent>
             </Card>

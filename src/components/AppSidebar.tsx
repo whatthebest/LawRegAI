@@ -32,7 +32,7 @@ import {
 
 const navLinks = [
   { href: "/", label: "Overview", icon: LayoutGrid },
-  { href: "/sops", label: "SOPs Mnagement", icon: ListChecks },
+  { href: "/sops", label: "SOPs Management", icon: ListChecks },
   { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
   { href: "/admin", label: "Admin", icon: UserCog, roles: ["Manager","RegTechTeam"] },
 ];

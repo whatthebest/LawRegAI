@@ -14,8 +14,29 @@ const toIso = (v: any): string | undefined => {
   return new Date(v).toISOString();
 };
 
+// Helper to add a timeout to fetch requests.
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = 10_000
+) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeoutMs / 1000}s`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function fetchSopsByStatus(status: SopStatus): Promise<SOP[]> {
-  const res = await fetch(`/api/sops?status=${encodeURIComponent(status)}`, {
+  const res = await fetchWithTimeout(`/api/sops?status=${encodeURIComponent(status)}`, {
     method: 'GET',
     headers: { Accept: 'application/json' },
     cache: 'no-store',
@@ -37,7 +58,7 @@ export async function patchSopStatus(
   sopIdOrKey: string,
   nextStatus: 'Approved' | 'Draft'
 ): Promise<SOP> {
-  const res = await fetch(`/api/sops/${encodeURIComponent(sopIdOrKey)}`, {
+  const res = await fetchWithTimeout(`/api/sops/${encodeURIComponent(sopIdOrKey)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ status: nextStatus }),
