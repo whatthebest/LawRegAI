@@ -1,8 +1,5 @@
-// src/app/sops/[id]/page.tsx
 
 "use client";
-
-
 
 import MainLayout from '@/components/MainLayout';
 import { SopTimeline } from '@/components/SopTimeline';
@@ -10,28 +7,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { mockSops } from '@/lib/mockData';
 import type { SOP, SOPStatus } from '@/lib/types';
 import { format } from 'date-fns';
 import { Check, MessageSquare, Share2, FileDown, Edit } from 'lucide-react';
 import Link from 'next/link';
+import useSWR from 'swr';
 
-
-
-
-// Add this helper near the top of the file
-function fmtDate(v?: string) {
-  if (!v) return "—";
-  const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? "—" : format(d, "MMM d, yyyy");
-}
-
-
-// Helper to find the SOP from mock data
-const getSop = (id: string): SOP | undefined => {
-  // Note: The link from the list page uses sop.sopId, but the mock data uses 'id'.
-  // We'll check against both for robustness.
-  return mockSops.find(sop => sop.id === id || sop.sopId === id);
+const fetcher = async (url: string) => {
+  const r = await fetch(url, { cache: 'no-store' });
+  if (!r.ok) throw new Error(`Fetch failed: ${r.status}`);
+  return r.json();
 };
 
 const getStatusVariant = (status: SOPStatus) => {
@@ -45,19 +30,36 @@ const getStatusVariant = (status: SOPStatus) => {
 };
 
 export default function SopDetailPage({ params }: { params: { id: string } }) {
-  const sop = getSop(params.id);
-
-  // If no SOP is found for the given ID, show a 404 page.
-  if (!sop) {
-    return (
-      <MainLayout>
-        <div className="p-6 text-red-500">SOP not found.</div>
-      </MainLayout>
-    );
-  }
+  const { data: sop, error, isLoading } = useSWR<SOP>(
+    params?.id ? `/api/sops/${params.id}` : null,
+    fetcher
+  );
 
   return (
     <MainLayout>
+      {isLoading && (
+        <div className="py-8 text-muted-foreground">Loading SOP…</div>
+      )}
+      {error && !isLoading && (
+        <div className="py-8 text-red-600">Failed to load SOP.</div>
+      )}
+      {!sop && !isLoading && !error && (
+        <div className="max-w-2xl mx-auto mt-16">
+          <Card>
+            <CardHeader>
+              <CardTitle>SOP not found</CardTitle>
+              <CardDescription>We couldn’t find this SOP. It may have been removed or the URL is wrong.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild>
+                <Link href="/sops">&larr; Back to SOP Repository</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {sop && (
       <div className="space-y-4">
         <div className="flex justify-between items-start gap-4">
             <div className="space-y-2">
@@ -68,7 +70,7 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span>Department: {sop.department}</span>
                     <Separator orientation="vertical" className="h-4" />
-                    <span>Created on: {fmtDate(sop.createdAt)}</span>
+                    <span>Created on: {(() => { const d = new Date(sop.createdAt as any); return isNaN(d.getTime()) ? '-' : format(d,'MMMM d, yyyy'); })()}</span>
                 </div>
             </div>
             <div className="flex items-center gap-2">
@@ -91,7 +93,7 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                 <CardDescription>Step-by-step process and responsible parties.</CardDescription>
               </CardHeader>
               <CardContent>
-                <SopTimeline steps={sop.steps ?? []} />
+                <SopTimeline steps={sop.steps} />
               </CardContent>
             </Card>
 
@@ -120,7 +122,7 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
                     <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground pt-1">
-                    Last updated on {fmtDate(sop.updatedAt)}
+                  Last updated on {(() => { const d = new Date(sop.updatedAt as any); return isNaN(d.getTime()) ? '-' : format(d,'MMM d, yyyy'); })()}
                 </p>
               </CardContent>
             </Card>
@@ -150,6 +152,7 @@ export default function SopDetailPage({ params }: { params: { id: string } }) {
           </div>
         </div>
       </div>
+      )}
     </MainLayout>
   );
 }
