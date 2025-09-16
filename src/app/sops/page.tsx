@@ -267,8 +267,6 @@ function SopsPageContent() {
                 </div>
               </div>
             </CardHeader>
-
-            // ✅ ใช้บล็อกนี้แทนทั้งหมดของ <CardContent>...</CardContent> ใน Approved List
             <CardContent>
               {showSpinner ? (
                 <TableSkeleton rows={6} />
