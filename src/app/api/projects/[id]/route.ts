@@ -92,7 +92,66 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   if (typeof body.completeDate === "string" && body.completeDate.trim()) allowed.completeDate = body.completeDate.trim();
   allowed.updatedAt = Date.now();
 
+  // read old project to compare SOP before update
+  const beforeSnap = await db.ref(`projects/${key}`).get();
+  const before = beforeSnap.exists() ? (beforeSnap.val() as any) : {};
+
   await db.ref(`projects/${key}`).update(allowed);
+
+  // If SOP changed, (re)materialize tasks from new SOP steps
+  try {
+    const newSopId = typeof allowed.sop === 'string' ? allowed.sop : undefined;
+    const oldSopId = before?.sop as string | undefined;
+    if (newSopId && newSopId !== oldSopId) {
+      // fetch SOP by key or by sopId/id
+      const sopDirect = await db.ref(`sops/${newSopId}`).get();
+      let sopVal: any | null = null;
+      if (sopDirect.exists()) {
+        sopVal = sopDirect.val();
+      } else {
+        const bySopId = await db.ref('sops').orderByChild('sopId').equalTo(newSopId).limitToFirst(1).get();
+        if (bySopId.exists()) sopVal = Object.values(bySopId.val())[0];
+        else {
+          const byId = await db.ref('sops').orderByChild('id').equalTo(newSopId).limitToFirst(1).get();
+          if (byId.exists()) sopVal = Object.values(byId.val())[0];
+        }
+      }
+
+      const rawSteps = Array.isArray(sopVal?.steps)
+        ? sopVal.steps
+        : sopVal && typeof sopVal?.steps === 'object'
+          ? Object.values(sopVal.steps)
+          : [];
+
+      const tasksObj: Record<string, any> = {};
+      (rawSteps as any[]).forEach((st: any, i: number) => {
+        const taskId = String(
+          st?.id ?? st?.stepId ?? st?.stepKey ?? `step-${(typeof st?.stepOrder === 'number' ? st.stepOrder : i + 1)}`
+        );
+        tasksObj[taskId] = sanitize({
+          taskId,
+          stepOrder: typeof st?.stepOrder === 'number' ? st.stepOrder : i + 1,
+          title: String(st?.title ?? ''),
+          detail: String(st?.detail ?? ''),
+          stepType: st?.stepType === 'Decision' ? 'Decision' : 'Sequence',
+          ...(st?.nextStepYes ? { nextStepYes: String(st.nextStepYes) } : {}),
+          ...(st?.nextStepNo ? { nextStepNo: String(st.nextStepNo) } : {}),
+          sla: typeof st?.sla === 'number' ? st.sla : 1,
+          owner: String(st?.owner ?? ''),
+          reviewer: String(st?.reviewer ?? ''),
+          approver: String(st?.approver ?? ''),
+          status: 'Draft',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      });
+
+      await db.ref(`projects/${key}/tasks`).set(tasksObj);
+    }
+  } catch (e) {
+    console.error('[PUT /api/projects/[id]] failed to materialize tasks on sop change:', e);
+  }
+
   const snap = await db.ref(`projects/${key}`).get();
   return NextResponse.json({ key, ...snap.val() });
 }

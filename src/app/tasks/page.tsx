@@ -133,6 +133,12 @@ export default function TasksPage() {
     setSelectedSop((sops ?? []).find((s) => s.id === val) ?? null);
   };
 
+  // Load full SOP detail when a value is selected, so steps are normalized even if stored as an object in DB
+  const { data: selectedSopFull } = useSWR<SOP>(
+    sopValue && sopValue !== NONE ? `/api/sops/${sopValue}` : null,
+    fetcher
+  );
+
   const handleDialogChange = (open: boolean) => {
     if (open) {
       setSelectedSop(null);
@@ -254,21 +260,23 @@ export default function TasksPage() {
             key={`${task.projectId}-${task.taskId}`}
             className="shadow-sm hover:shadow-md transition-shadow"
           >
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="max-w-prose">
+            <CardContent className="p-4 flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
                 <p className="text-sm text-muted-foreground">
                   Project: {task.projectName}
                 </p>
-                <p className="font-semibold">
+                <p className="font-semibold break-words">
                   Step {task.stepOrder}: {task.title}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Status: {displayStatus(task.status)}
                 </p>
               </div>
-              <Link href={`/projects/${task.projectId}`} passHref>
-                <Button variant="outline">View Project</Button>
-              </Link>
+              <div className="flex-shrink-0">
+                <Link href={`/projects/${task.projectId}`} passHref>
+                  <Button variant="outline">View Project</Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -354,7 +362,7 @@ export default function TasksPage() {
             </Button>
           </DialogTrigger>
 
-          <DialogContent className="sm:max-w-[900px]">
+          <DialogContent className="sm:max-w-[900px] max-h-none overflow-visible no-scrollbar">
             <DialogHeader>
               <DialogTitle>Create New Project Item</DialogTitle>
               <DialogDescription>
@@ -422,15 +430,15 @@ export default function TasksPage() {
               </div>
 
               {/* Right: guideline (render เฉพาะตอนมี SOP) */}
-              {selectedSop && (
+              {(selectedSop || selectedSopFull) && (
                 <div className="hidden md:block">
                   <div className="h-full flex flex-col">
                     <h4 className="font-semibold text-lg">
-                      SOP Guideline: {selectedSop.title}
+                      SOP Guideline: {(selectedSopFull ?? selectedSop)?.title}
                     </h4>
                     <Separator className="my-3" />
-                    <div className="min-h-[320px] max-h-[520px] overflow-y-auto pr-3">
-                      <SopTimeline steps={selectedSop.steps} />
+                    <div className="pr-3 overflow-visible">
+                      <SopTimeline steps={(selectedSopFull ?? selectedSop)?.steps ?? []} />
                     </div>
                   </div>
                 </div>

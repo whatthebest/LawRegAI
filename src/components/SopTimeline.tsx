@@ -12,7 +12,7 @@ export function SopTimeline({ steps }: { steps: SOPStep[] }) {
     s.id && s.id !== "" ? s.id : `step-${s.stepOrder ?? i + 1}-${s.title ?? "untitled"}-${i}`;
 
   return (
-    <div className="relative pl-8">
+    <div className="relative pl-8 overflow-x-hidden overflow-y-visible no-scrollbar">
       <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-border -translate-x-1/2" />
 
       <div className="space-y-8">
@@ -24,18 +24,22 @@ export function SopTimeline({ steps }: { steps: SOPStep[] }) {
               </div>
             </div>
 
-            <Card className="ml-8 w-full shadow-sm">
+            <Card className="ml-8 w-full shadow-sm overflow-x-hidden">
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="font-bold text-xl">{step.title}</CardTitle>
+                    <CardTitle className="font-bold text-xl break-words">
+                      {step.title}
+                    </CardTitle>
                     <CardDescription>Step {step.stepOrder}</CardDescription>
                   </div>
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground">{step.detail}</p>
+              <CardContent className="space-y-4 overflow-x-hidden">
+                <p className="text-muted-foreground break-words whitespace-pre-wrap">
+                  {step.detail}
+                </p>
 
                 {step.stepType === "Decision" && (
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm bg-muted/50 p-3 rounded-md">

@@ -268,6 +268,7 @@ function SopsPageContent() {
               </div>
             </CardHeader>
 
+            // ✅ ใช้บล็อกนี้แทนทั้งหมดของ <CardContent>...</CardContent> ใน Approved List
             <CardContent>
               {showSpinner ? (
                 <TableSkeleton rows={6} />
@@ -298,6 +299,7 @@ function SopsPageContent() {
                                   <DialogHeader>
                                     <DialogTitle>Timeline Preview: {sop.title}</DialogTitle>
                                   </DialogHeader>
+                                  {/* กัน content ล้นจอ แต่ยัง scroll ได้ลื่น */}
                                   <div className="max-h-[70vh] overflow-y-auto p-4">
                                     <SopTimeline steps={sop.steps ?? []} />
                                   </div>

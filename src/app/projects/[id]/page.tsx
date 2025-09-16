@@ -20,10 +20,11 @@ import {
   DialogDescription, DialogClose,
 } from "@/components/ui/dialog";
 import { useForm, Controller } from "react-hook-form";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+  import { Textarea } from "@/components/ui/textarea";
+  import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  } from "@/components/ui/select";
+  import { Separator } from "@/components/ui/separator";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
@@ -186,6 +187,13 @@ export default function ProjectDetailPage() {
       completeDate: "",
     },
   });
+
+  // For Edit dialog: fetch full SOP when a value is selected (must be after useForm so watch is initialized)
+  const selectedEditSopId = watch("sop");
+  const { data: selectedEditSop } = useSWR<SOP>(
+    selectedEditSopId ? `/api/sops/${selectedEditSopId}` : null,
+    fetcher
+  );
 
   // ----- ตั้งค่า form + tasks เมื่อ project/sop มา -----
   useEffect(() => {
@@ -384,6 +392,7 @@ export default function ProjectDetailPage() {
         throw new Error(msg);
       }
       await mutate(`/api/projects/${projectId}`); // รีโหลดหน้า detail
+      await mutate(`/api/projects/${projectId}/tasks`); // reload tasks if SOP changed
       await mutate(`/api/projects`);              // เผื่อ list หน้า tasks
       // ถ้าเปลี่ยน SOP ให้รีโหลด SOP ใหม่
       const updated = await res.json();
@@ -628,76 +637,80 @@ export default function ProjectDetailPage() {
                     Edit Project
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="sm:max-w-[900px] max-h-none overflow-visible no-scrollbar">
                   <DialogHeader>
                     <DialogTitle>Edit Project</DialogTitle>
                     <DialogDescription>Update the project details and linked SOP.</DialogDescription>
                   </DialogHeader>
 
-                  <form onSubmit={handleSubmitProject(handleEditProject)} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="projectName">Project Name</Label>
-                      <Input id="projectName" {...registerProject("name", { required: "Project name is required" })} />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="projectDescription">Project Description</Label>
-                      <Textarea id="projectDescription" {...registerProject("description", { required: "Description is required" })} />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 col-span-4">
+                  <div className="grid gap-6 md:grid-cols-2">
+                    {/* Left: form */}
+                    <form onSubmit={handleSubmitProject(handleEditProject)} className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="start-date">Start Date</Label>
-                        <Input id="start-date" type="date" {...registerProject("startDate")} />
+                        <Label htmlFor="projectName">Project Name</Label>
+                        <Input id="projectName" {...registerProject("name", { required: "Project name is required" })} />
                       </div>
+
                       <div className="space-y-2">
-                        <Label htmlFor="complete-date">Complete Date</Label>
-                        <Input id="complete-date" type="date" {...registerProject("completeDate")} />
+                        <Label htmlFor="projectDescription">Project Description</Label>
+                        <Textarea id="projectDescription" {...registerProject("description", { required: "Description is required" })} />
                       </div>
-                    </div>
 
-                    {/* เลือก SOP */}
-                    <div className="space-y-2">
-                      <Label htmlFor="projectSop">Relevant SOP</Label>
-                      <Controller
-                        control={control}
-                        name="sop"
-                        render={({ field }) => (
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger id="projectSop">
-                              <SelectValue placeholder="Select an SOP" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(allSops ?? []).map((s) => (
-                                <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    </div>
-
-                    {/* Preview สั้นๆ */}
-                    <div className="rounded-lg border p-3 text-sm">
-                      <div className="font-semibold">
-                        {(allSops ?? []).find((s) => s.id === watch("sop"))?.title ?? "—"}
+                      <div className="grid grid-cols-2 gap-4 col-span-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="start-date">Start Date</Label>
+                          <Input id="start-date" type="date" {...registerProject("startDate")} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="complete-date">Complete Date</Label>
+                          <Input id="complete-date" type="date" {...registerProject("completeDate")} />
+                        </div>
                       </div>
-                      <ul className="mt-1 list-disc pl-4">
-                        {(
-                          (allSops ?? []).find((s) => s.id === watch("sop"))?.steps?.slice(0, 3) ?? []
-                        ).map((st, i) => (
-                          <li key={i}>{(st as any)?.title ?? String(st)}</li>
-                        ))}
-                      </ul>
-                    </div>
 
-                    <div className="flex justify-end gap-2 pt-4">
-                      <DialogClose asChild>
-                        <Button type="button" variant="ghost">Cancel</Button>
-                      </DialogClose>
-                      <Button type="submit">Save Changes</Button>
-                    </div>
-                  </form>
+                      {/* เลือก SOP */}
+                      <div className="space-y-2">
+                        <Label htmlFor="projectSop">Relevant SOP</Label>
+                        <Controller
+                          control={control}
+                          name="sop"
+                          render={({ field }) => (
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <SelectTrigger id="projectSop">
+                                <SelectValue placeholder="Select an SOP" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(allSops ?? []).map((s) => (
+                                  <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-4">
+                        <DialogClose asChild>
+                          <Button type="button" variant="ghost">Cancel</Button>
+                        </DialogClose>
+                        <Button type="submit">Save Changes</Button>
+                      </div>
+                    </form>
+
+                    {/* Right: SOP Guideline (like Create) */}
+                    {(selectedEditSop || (allSops ?? []).find((s) => s.id === selectedEditSopId)) && (
+                      <div className="hidden md:block">
+                        <div className="h-full flex flex-col">
+                          <h4 className="font-semibold text-lg">
+                            SOP Guideline: { (selectedEditSop ?? (allSops ?? []).find((s) => s.id === selectedEditSopId))?.title }
+                          </h4>
+                          <Separator className="my-3" />
+                          <div className="pr-3 overflow-visible">
+                            <SopTimeline steps={(selectedEditSop ?? (allSops ?? []).find((s) => s.id === selectedEditSopId))?.steps ?? []} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </DialogContent>
               </Dialog>
 
@@ -888,14 +901,14 @@ export default function ProjectDetailPage() {
 
         {/* Sidebar: SOP Guideline */}
         <div className="space-y-6 md:col-span-1">
-          <Card className="sticky top-24">
+          <Card>
             <CardHeader>
               <CardTitle>SOP Guideline</CardTitle>
               <CardDescription>
                 {sop?.title ?? (linkedSopId ? "—" : "Project Tasks")}
               </CardDescription>
             </CardHeader>
-            <CardContent className="max-h-[70vh] overflow-y-auto">
+            <CardContent className="overflow-visible no-scrollbar">
               {sop ? (
                 <SopTimeline steps={sop.steps} />
               ) : tasks.length > 0 ? (
