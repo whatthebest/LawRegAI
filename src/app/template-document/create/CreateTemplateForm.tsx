@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm, useFieldArray } from "react-hook-form";
@@ -16,6 +17,9 @@ import { FileText, PlusCircle, Trash2 } from "lucide-react";
 import { createTemplate } from "@/lib/api/templates";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { useState } from "react";
+
 
 const fieldTypes = ["Text", "Number", "Checklist", "Person"] as const;
 
@@ -43,6 +47,73 @@ const slugify = (str: string) =>
     .replace(/[\s_-]+/g, "_")
     .replace(/^-+|-+$/g, "");
 
+// --- Add Field Dialog Component ---
+function AddFieldDialog({ onAddField }: { onAddField: (field: z.infer<typeof templateFieldSchema>) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [label, setLabel] = useState('');
+    const [name, setName] = useState('');
+    const [type, setType] = useState<typeof fieldTypes[number]>('Text');
+
+    const handleLabelChange = (value: string) => {
+        setLabel(value);
+        setName(slugify(value));
+    };
+
+    const handleSave = () => {
+        if (label.trim() && name.trim()) {
+            onAddField({ label, name, type });
+            setLabel('');
+            setName('');
+            setType('Text');
+            setIsOpen(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                    <PlusCircle className="w-4 h-4" />
+                    Add Field
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add New Field</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="field-label">Field Label</Label>
+                        <Input id="field-label" value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder="e.g., Project Name" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="field-name">Field Name (auto)</Label>
+                        <Input id="field-name" value={name} readOnly placeholder="e.g., project_name" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="field-type">Field Type</Label>
+                        <Select value={type} onValueChange={(v) => setType(v as any)}>
+                            <SelectTrigger id="field-type">
+                                <SelectValue placeholder="Select a type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {fieldTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="ghost">Cancel</Button>
+                    </DialogClose>
+                    <Button type="button" onClick={handleSave} disabled={!label.trim() || !name.trim()}>Add</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+
 export default function CreateTemplateForm() {
   const { toast } = useToast();
   const router = useRouter();
@@ -60,24 +131,6 @@ export default function CreateTemplateForm() {
     control: form.control,
     name: "fields",
   });
-
-  const watchFieldArray = form.watch("fields");
-  const controlledFields = fields.map((field, index) => {
-    return {
-      ...field,
-      ...watchFieldArray[index]
-    };
-  });
-
-  const handleAddField = () => {
-    append({ name: "", label: "", type: "Text" });
-  };
-
-  const handleLabelChange = (index: number, value: string) => {
-    form.setValue(`fields.${index}.label`, value);
-    form.setValue(`fields.${index}.name`, slugify(value));
-  };
-
 
   // Handle form submission
   async function onSubmit(data: TemplateFormValues) {
@@ -119,9 +172,12 @@ export default function CreateTemplateForm() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <Card className="max-w-4xl mx-auto">
-            <CardHeader>
-              <CardTitle>Template Details</CardTitle>
-              <CardDescription>Fill out the form below to create a new template.</CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <CardTitle>Template Details</CardTitle>
+                <CardDescription>Fill out the form below to create a new template.</CardDescription>
+              </div>
+              <AddFieldDialog onAddField={(field) => append(field)} />
             </CardHeader>
             <CardContent className="space-y-6">
               <FormField
@@ -155,82 +211,44 @@ export default function CreateTemplateForm() {
                   </FormItem>
                 )}
               />
+              
+              <Separator />
+
+              {/* Live Preview Area */}
+              <div className="space-y-4">
+                  <FormLabel>Template Fields Preview</FormLabel>
+                  {fields.length === 0 ? (
+                       <div className="text-center text-muted-foreground py-6 border-2 border-dashed rounded-lg">
+                        <p>No fields added yet.</p>
+                        <p className="text-sm">Click "Add Field" to get started.</p>
+                      </div>
+                  ) : (
+                    <div className="space-y-3">
+                         {fields.map((field, index) => (
+                            <div key={field.id} className="flex items-center gap-4 p-3 border rounded-lg bg-background/50">
+                                <div className="flex-1 space-y-1">
+                                    <p className="font-medium">{form.watch(`fields.${index}.label`)}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Name: <span className="font-mono">{form.watch(`fields.${index}.name`)}</span>, 
+                                        Type: <span className="font-mono">{form.watch(`fields.${index}.type`)}</span>
+                                    </p>
+                                </div>
+                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => remove(index)}>
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                            </div>
+                         ))}
+                    </div>
+                  )}
+                  {form.formState.errors.fields && (
+                      <p className="text-sm font-medium text-destructive">
+                        {form.formState.errors.fields.message}
+                      </p>
+                    )}
+              </div>
+
             </CardContent>
           </Card>
-
-           <Card className="max-w-4xl mx-auto">
-             <CardHeader>
-              <CardTitle>Template Fields</CardTitle>
-              <CardDescription>Add and configure the fields for this template.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-               {controlledFields.map((field, index) => (
-                <div key={field.id} className="p-4 border rounded-lg space-y-4 relative bg-background/50">
-                  <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => remove(index)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                     <FormField
-                        control={form.control}
-                        name={`fields.${index}.label`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Field Label</FormLabel>
-                            <FormControl>
-                              <Input {...field} onChange={(e) => handleLabelChange(index, e.target.value)} placeholder="e.g., Project Name" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`fields.${index}.name`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Field Name (auto)</FormLabel>
-                            <FormControl>
-                              <Input {...field} readOnly placeholder="e.g., project_name"/>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`fields.${index}.type`}
-                        render={({ field }) => (
-                           <FormItem>
-                            <FormLabel>Field Type</FormLabel>
-                             <Select onValueChange={field.onChange} value={field.value}>
-                               <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select a type" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {fieldTypes.map(type => (
-                                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                  </div>
-                </div>
-              ))}
-              <Button type="button" variant="outline" onClick={handleAddField} className="gap-2">
-                <PlusCircle className="w-4 h-4" /> Add Field
-              </Button>
-               {form.formState.errors.fields && (
-                  <p className="text-sm font-medium text-destructive">
-                    {form.formState.errors.fields.message}
-                  </p>
-                )}
-            </CardContent>
-           </Card>
 
             <div className="max-w-4xl mx-auto flex justify-end">
               <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
