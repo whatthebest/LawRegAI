@@ -48,4 +48,4 @@ firestore-debug.log
 
 src/firebaseConfig.ts
 
-secrets/*
+secrets/
