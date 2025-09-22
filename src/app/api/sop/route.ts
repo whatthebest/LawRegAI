@@ -106,6 +106,7 @@ export async function POST(req: Request) {
         approver: String(s?.approver ?? ""),
         ...(s?.nextStepYes ? { nextStepYes: String(s.nextStepYes) } : {}),
         ...(s?.nextStepNo ? { nextStepNo: String(s.nextStepNo) } : {}),
+        ...(s?.templateId && s.templateId !== 'none' ? { templateId: String(s.templateId) } : {}),
       }));
     }
 

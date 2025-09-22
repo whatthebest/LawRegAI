@@ -54,6 +54,7 @@ export interface SOPStep {
   stepType: SOPStepType;
   nextStepYes?: string; // Optional, for Decision steps
   nextStepNo?: string;  // Optional, for Decision steps
+  templateId?: string; // ID of the linked document template
   sla: number; // in days
   owner: string; // user email
   reviewer: string;

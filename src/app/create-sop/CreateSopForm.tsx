@@ -20,8 +20,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FileUpload } from "@/components/FileUpload";
 import Link from "next/link";
+import useSWR from 'swr';
+import type { TemplateRecord } from "@/lib/api/templates";
 
-
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 
 // ---------- Zod schemas ----------
@@ -32,6 +34,7 @@ const sopStepSchema = z.object({
   stepType: z.enum(["Sequence", "Decision"]),
   nextStepYes: z.string().optional(),
   nextStepNo: z.string().optional(),
+  templateId: z.string().optional(),
   sla: z.coerce.number().int().positive("SLA must be a positive number."),
   owner: z.string().email("Owner must be a valid email."),
   reviewer: z.string().email("Reviewer must be a valid email."),
@@ -62,6 +65,8 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
 
   const [dateCreated, setDateCreated] = useState("");
   const [uploadKey, setUploadKey] = useState(0);
+
+  const { data: templates, error: templatesError } = useSWR<TemplateRecord[]>('/api/templates', fetcher);
 
   const form = useForm<SopFormValues>({
     resolver: zodResolver(sopFormSchema),
@@ -120,6 +125,7 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
       nextStepYes: "",
       nextStepNo: "",
       attachments: [],
+      templateId: undefined,
     });
   };
 
@@ -421,27 +427,55 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name={`steps.${index}.stepType`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Step Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select step type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Sequence">Sequence</SelectItem>
-                            <SelectItem value="Decision">Decision</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name={`steps.${index}.stepType`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Step Type</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select step type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Sequence">Sequence</SelectItem>
+                              <SelectItem value="Decision">Decision</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`steps.${index}.templateId`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Document Template (Optional)</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a template" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="none">No Template</SelectItem>
+                              {templates?.map((template) => (
+                                <SelectItem key={template.id} value={template.id}>
+                                  {template.title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                           {templatesError && <FormMessage>Could not load templates.</FormMessage>}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   {steps[index]?.stepType === "Decision" && (
                     <div className="grid sm:grid-cols-2 gap-4">
