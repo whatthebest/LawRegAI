@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 const fieldTypes = ["Text", "Number", "Checklist", "Person"] as const;
@@ -229,11 +230,20 @@ export default function CreateTemplateForm() {
                                 <FormItem className="flex-1">
                                     <FormLabel>{form.watch(`fields.${index}.label`)}</FormLabel>
                                     <FormControl>
-                                        <Input 
-                                            readOnly 
-                                            disabled 
-                                            placeholder={`This is a "${form.watch(`fields.${index}.type`)}" field.`} 
-                                        />
+                                        {form.watch(`fields.${index}.type`) === 'Checklist' ? (
+                                            <div className="flex items-center space-x-2 h-10">
+                                                <Checkbox disabled />
+                                                <Label className="text-sm font-normal text-muted-foreground">
+                                                    This is a "{form.watch(`fields.${index}.type`)}" field.
+                                                </Label>
+                                            </div>
+                                        ) : (
+                                            <Input 
+                                                readOnly 
+                                                disabled 
+                                                placeholder={`This is a "${form.watch(`fields.${index}.type`)}" field.`} 
+                                            />
+                                        )}
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -246,7 +256,7 @@ export default function CreateTemplateForm() {
                   )}
                   {form.formState.errors.fields && (
                       <p className="text-sm font-medium text-destructive">
-                        {form.formState.errors.fields.message}
+                        {form.formState.errors.fields.message as string}
                       </p>
                     )}
               </div>
