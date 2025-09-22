@@ -3,10 +3,17 @@ import { NextResponse } from "next/server";
 import { cert, getApps, initializeApp, getApp, type App } from "firebase-admin/app";
 import { getDatabase, type DataSnapshot } from "firebase-admin/database";
 import { getSessionUser } from "@/lib/auth-server";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+const fieldSchema = z.object({
+  name: z.string(),
+  label: z.string(),
+  type: z.enum(["Text", "Number", "Checklist", "Person"]),
+});
 
 function getFirebaseAdminApp(): App {
   if (getApps().length) return getApp();
@@ -67,7 +74,7 @@ function normalizeTemplate(key: string, payload: any) {
     templateIndex: typeof payload?.templateIndex === "number" ? payload.templateIndex : undefined,
     title: String(payload?.title ?? ""),
     description: String(payload?.description ?? ""),
-    content: String(payload?.content ?? ""),
+    fields: Array.isArray(payload?.fields) ? payload.fields : [],
     createdAt: createdAtIso,
     ...(updatedAtIso ? { updatedAt: updatedAtIso } : {}),
   };
@@ -136,9 +143,11 @@ export async function POST(req: Request) {
 
     const title = typeof payload?.title === "string" ? payload.title.trim() : "";
     const description = typeof payload?.description === "string" ? payload.description.trim() : "";
-    const content = typeof payload?.content === "string" ? payload.content.trim() : "";
+    const fields = Array.isArray(payload.fields) ? payload.fields : [];
+    
+    const parsedFields = z.array(fieldSchema).safeParse(fields);
 
-    if (!title || !description || !content) {
+    if (!title || !description || !parsedFields.success) {
       return NextResponse.json({ error: "invalid_payload" }, { status: 400 });
     }
 
@@ -171,7 +180,7 @@ export async function POST(req: Request) {
     const record = {
       title,
       description,
-      content,
+      fields: parsedFields.data,
       templateId,
       templateIndex: newIndex,
       createdAt: now,

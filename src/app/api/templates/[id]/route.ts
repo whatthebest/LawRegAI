@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { cert, getApps, initializeApp, getApp, type App } from "firebase-admin/app";
 import { getDatabase } from "firebase-admin/database";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,12 @@ function getFirebaseAdminApp(): App {
     databaseURL,
   });
 }
+
+const fieldSchema = z.object({
+  name: z.string(),
+  label: z.string(),
+  type: z.enum(["Text", "Number", "Checklist", "Person"]),
+});
 
 function toIso(value: any): string | undefined {
   if (value == null) return undefined;
@@ -66,7 +73,7 @@ function normalizeTemplate(key: string, payload: any) {
     templateIndex: typeof payload?.templateIndex === "number" ? payload.templateIndex : undefined,
     title: String(payload?.title ?? ""),
     description: String(payload?.description ?? ""),
-    content: String(payload?.content ?? ""),
+    fields: Array.isArray(payload.fields) ? payload.fields : [],
     createdAt: createdAtIso,
     ...(updatedAtIso ? { updatedAt: updatedAtIso } : {}),
   };
@@ -139,13 +146,21 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     const raw = await req.json().catch(() => ({}));
     const payload = sanitize(raw) ?? {};
-
+    
     const updates: Record<string, any> = {};
     if (typeof payload?.title === "string") updates.title = payload.title.trim();
     if (typeof payload?.description === "string") updates.description = payload.description.trim();
-    if (typeof payload?.content === "string") updates.content = payload.content.trim();
+    if (Array.isArray(payload.fields)) {
+        const parsed = z.array(fieldSchema).safeParse(payload.fields);
+        if (parsed.success) {
+            updates.fields = parsed.data;
+        }
+    }
 
-    const validUpdates = Object.entries(updates).filter(([, value]) => typeof value === "string" && value.length > 0);
+    const validUpdates = Object.entries(updates).filter(([k, value]) => {
+      if (k === 'fields') return Array.isArray(value) && value.length > 0;
+      return typeof value === "string" && value.length > 0
+    });
     const prepared = Object.fromEntries(validUpdates);
 
     if (!Object.keys(prepared).length) {

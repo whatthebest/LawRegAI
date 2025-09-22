@@ -75,10 +75,18 @@ export interface Project {
 }
 
 // ----- Document Template Definitions -----
+export type TemplateFieldType = "Text" | "Number" | "Checklist" | "Person";
+
+export interface TemplateField {
+  name: string; // a unique machine-readable name, e.g., "project_name"
+  label: string; // a human-readable label, e.g., "Project Name"
+  type: TemplateFieldType;
+}
+
 export interface DocumentTemplate {
   id: string;
   title: string;
   description: string;
-  content: string; // The actual template body, can contain placeholders like {{variable}}
+  fields: TemplateField[];
   createdAt: string; // ISO date string
 }
