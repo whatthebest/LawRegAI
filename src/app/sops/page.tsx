@@ -90,7 +90,7 @@ function SopsPageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<TemplateRecord[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
 
   // show spinner only if load takes >300ms
@@ -119,6 +119,7 @@ function SopsPageContent() {
         const results = await Promise.allSettled([
           fetchSopsByStatus("Approved"),
           fetchSopsByStatus("In Review"),
+          fetchTemplates(), // Fetch templates alongside SOPs
         ]);
 
         if (!alive) return;
@@ -126,11 +127,24 @@ function SopsPageContent() {
         const ok: SOP[] = [];
         const errs: string[] = [];
 
-        results.forEach((r, idx) => {
+        // SOPs
+        [results[0], results[1]].forEach((r, idx) => {
           const tag = idx === 0 ? "Approved" : "In Review";
-          if (r.status === "fulfilled") ok.push(...r.value);
+          if (r.status === "fulfilled") ok.push(...(r.value as SOP[]));
           else errs.push(`${tag}: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`);
         });
+        
+        // Templates
+        const templateResult = results[2];
+        if (templateResult.status === 'fulfilled') {
+          const sortedTemplates = [...(templateResult.value as TemplateRecord[])].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          setTemplates(sortedTemplates);
+        } else {
+          errs.push(`Templates: ${templateResult.reason instanceof Error ? templateResult.reason.message : String(templateResult.reason)}`);
+        }
+
 
         ok.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setSops(ok.filter((s) => s.status === "Approved"));
@@ -145,6 +159,7 @@ function SopsPageContent() {
         if (alive) {
           clearTimeout(watchdog);
           setLoading(false);
+          setTemplatesLoading(false);
         }
       }
     })();
@@ -153,19 +168,13 @@ function SopsPageContent() {
       alive = false;
       clearTimeout(watchdog);
     };
-  }, []);
+  }, []); // Changed to run once on mount
 
+  // This effect is now only for when the templates tab is active, if not already loaded
   useEffect(() => {
-    if (activeTab !== "templates") return;
+    if (activeTab !== "templates" || templates.length > 0) return;
 
     let alive = true;
-
-    const watchdog = setTimeout(() => {
-      if (!alive) return;
-      setTemplatesError((prev) => prev ?? "Request took too long. Please try again.");
-      setTemplatesLoading(false);
-    }, 12_000);
-
     (async () => {
       setTemplatesLoading(true);
       setTemplatesError(null);
@@ -183,18 +192,11 @@ function SopsPageContent() {
           msg.toLowerCase().includes("timed out") ? "Unable to load templates. Please try again." : msg
         );
       } finally {
-        if (alive) {
-          clearTimeout(watchdog);
-          setTemplatesLoading(false);
-        }
+        if (alive) setTemplatesLoading(false);
       }
     })();
-
-    return () => {
-      alive = false;
-      clearTimeout(watchdog);
-    };
-  }, [activeTab, searchKey]);
+    return () => { alive = false; };
+  }, [activeTab, templates.length]);
 
 
   const filteredSops = useMemo(() => {
@@ -339,49 +341,81 @@ function SopsPageContent() {
                   </TableHeader>
                   <TableBody>
                     {filteredSops.length > 0 ? (
-                      filteredSops.map((sop) => (
-                        <TableRow key={sop.id ?? sop.sopId}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                                    <Workflow className="w-4 h-4 text-muted-foreground" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-2xl">
-                                  <DialogHeader>
-                                    <DialogTitle>Timeline Preview: {sop.title}</DialogTitle>
-                                  </DialogHeader>
-                                  {/* กัน content ล้นจอ แต่ยัง scroll ได้ลื่น */}
-                                  <div className="max-h-[70vh] overflow-y-auto p-4">
-                                    <SopTimeline steps={sop.steps ?? []} />
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-                              <span>{sop.title}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{sop.department}</TableCell>
-                          <TableCell>
-                            {(() => {
-                              const dt = new Date(sop.createdAt);
-                              return isNaN(dt.getTime()) ? "-" : format(dt, "MMMM d, yyyy");
-                            })()}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Link href={`/sops/${sop.sopId ?? sop.id}`} passHref>
-                              <Button variant="ghost" size="sm" className="gap-1">
-                                View
-                                <ArrowRight className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      filteredSops.map((sop) => {
+                        const relevantTemplates = templates.filter(
+                          t => t.relevantSopId === sop.id || t.relevantSopId === sop.sopId
+                        );
+                        return (
+                          <TableRow key={sop.id ?? sop.sopId}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                      <Workflow className="w-4 h-4 text-muted-foreground" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="sm:max-w-2xl">
+                                    <DialogHeader>
+                                      <DialogTitle>Timeline Preview: {sop.title}</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="max-h-[70vh] overflow-y-auto p-4">
+                                      <SopTimeline steps={sop.steps ?? []} />
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+
+                                {relevantTemplates.length > 0 && (
+                                  <Dialog>
+                                    <DialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                                        <FileText className="w-4 h-4 text-muted-foreground" />
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                      <DialogHeader>
+                                        <DialogTitle>Relevant Templates for: {sop.title}</DialogTitle>
+                                      </DialogHeader>
+                                      <div className="max-h-[70vh] overflow-y-auto p-4 space-y-2">
+                                        {relevantTemplates.map(template => (
+                                          <Link key={template.id} href={`/template-document/edit/${template.id}`} className="block">
+                                            <Card className="hover:bg-muted/50 transition-colors">
+                                              <CardContent className="p-3">
+                                                <p className="font-semibold">{template.title}</p>
+                                                <p className="text-sm text-muted-foreground line-clamp-2">{template.description}</p>
+                                              </CardContent>
+                                            </Card>
+                                          </Link>
+                                        ))}
+                                      </div>
+                                    </DialogContent>
+                                  </Dialog>
+                                )}
+                                
+                                <span>{sop.title}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>{sop.department}</TableCell>
+                            <TableCell>
+                              {(() => {
+                                const dt = new Date(sop.createdAt);
+                                return isNaN(dt.getTime()) ? "-" : format(dt, "MMMM d, yyyy");
+                              })()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Link href={`/sops/${sop.sopId ?? sop.id}`} passHref>
+                                <Button variant="ghost" size="sm" className="gap-1">
+                                  View
+                                  <ArrowRight className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     ) : (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center h-24">
