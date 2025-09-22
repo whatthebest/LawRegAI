@@ -24,9 +24,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 // real backend helpers
 import { fetchSopsByStatus, patchSopStatus } from "@/lib/api/sops";
+import { fetchTemplates } from "@/lib/api/templates";
+import type { TemplateRecord } from "@/lib/api/templates";
 
-// still-mocked templates
-import { mockTemplates, sopDepartments, sopStatuses } from "@/lib/mockData";
+
+// still-mocked options
+import { sopDepartments, sopStatuses } from "@/lib/mockData";
 
 const getStatusVariant = (status: SOPStatus) => {
   switch (status) {
@@ -72,7 +75,10 @@ function TableSkeleton({ rows = 6 }: { rows?: number }) {
 
 function SopsPageContent() {
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") || "list";
+  const queryTab = searchParams.get("tab") || "list";
+  const searchKey = searchParams.toString();
+
+  const [activeTab, setActiveTab] = useState(queryTab);
 
   const [departmentFilter, setDepartmentFilter] = useState<SOPDepartment | "all">("all");
   const [statusFilter, setStatusFilter] = useState<SOPStatus | "all">("all");
@@ -83,9 +89,17 @@ function SopsPageContent() {
   const [reviewSops, setReviewSops] = useState<SOP[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<TemplateRecord[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
 
   // show spinner only if load takes >300ms
   const showSpinner = useDelayedSpinner(loading, 300);
+  const templatesSpinner = useDelayedSpinner(templatesLoading, 300);
+
+  useEffect(() => {
+    setActiveTab(queryTab);
+  }, [queryTab]);
 
   useEffect(() => {
     let alive = true;
@@ -140,6 +154,48 @@ function SopsPageContent() {
       clearTimeout(watchdog);
     };
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "templates") return;
+
+    let alive = true;
+
+    const watchdog = setTimeout(() => {
+      if (!alive) return;
+      setTemplatesError((prev) => prev ?? "Request took too long. Please try again.");
+      setTemplatesLoading(false);
+    }, 12_000);
+
+    (async () => {
+      setTemplatesLoading(true);
+      setTemplatesError(null);
+      try {
+        const list = await fetchTemplates();
+        if (!alive) return;
+        const sorted = [...list].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setTemplates(sorted);
+      } catch (e) {
+        if (!alive) return;
+        const msg = e instanceof Error ? e.message : "Unknown error";
+        setTemplatesError(
+          msg.toLowerCase().includes("timed out") ? "Unable to load templates. Please try again." : msg
+        );
+      } finally {
+        if (alive) {
+          clearTimeout(watchdog);
+          setTemplatesLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      alive = false;
+      clearTimeout(watchdog);
+    };
+  }, [activeTab, searchKey]);
+
 
   const filteredSops = useMemo(() => {
     return sops
@@ -210,7 +266,7 @@ function SopsPageContent() {
         </Link>
       </div>
 
-      <Tabs defaultValue={initialTab}>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="list" className="gap-2">
             <List className="w-4 h-4" /> List of SOPs
@@ -417,7 +473,7 @@ function SopsPageContent() {
           </Card>
         </TabsContent>
 
-        {/* Templates (mocked) */}
+        {/* Templates */}
         <TabsContent value="templates">
           <Card>
             <CardHeader className="flex flex-row justify-between items-center">
@@ -433,38 +489,55 @@ function SopsPageContent() {
               </Link>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
+            {templatesError && (
+                <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {templatesError}
+                </div>
+              )}
+              {templatesSpinner ? (
+                <TableSkeleton rows={4} />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
                     <TableHead>Title</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Date Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockTemplates.length > 0 ? (
-                    mockTemplates.map((template) => (
-                      <TableRow key={template.id}>
-                        <TableCell className="font-medium">{template.title}</TableCell>
-                        <TableCell className="text-muted-foreground max-w-sm truncate">{template.description}</TableCell>
-                        <TableCell>{format(new Date(template.createdAt), "MMMM d, yyyy")}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/template-document/edit/${template.id}`}>Edit</Link>
-                          </Button>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Date Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                    </TableHeader>
+                  <TableBody>
+                    {templates.length > 0 ? (
+                      templates.map((template) => {
+                        const slug = template.templateId ?? template.id ?? template.key ?? "";
+                        return (
+                          <TableRow key={template.templateId ?? template.id ?? template.key ?? template.title}>
+                            <TableCell className="font-medium">{template.title}</TableCell>
+                            <TableCell className="text-muted-foreground max-w-sm truncate">{template.description}</TableCell>
+                            <TableCell>
+                              {(() => {
+                                const dt = new Date(template.createdAt);
+                                return Number.isNaN(dt.getTime()) ? "-" : format(dt, "MMMM d, yyyy");
+                              })()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="outline" size="sm" asChild>
+                                <Link href={`/template-document/edit/${encodeURIComponent(slug)}`}>Edit</Link>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center h-24">
+                          No templates found.
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center h-24">
-                        No templates found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
