@@ -5,6 +5,7 @@ export interface TemplatePayload {
   title: string;
   description: string;
   fields: TemplateField[];
+  relevantSopId?: string;
 }
 
 export type TemplateRecord = DocumentTemplate & {
@@ -60,6 +61,7 @@ function normalizeTemplate(data: any): TemplateRecord {
     description: String(data?.description ?? ""),
     fields: Array.isArray(data?.fields) ? data.fields : [],
     createdAt,
+    relevantSopId: data?.relevantSopId,
     ...(updatedAt ? { updatedAt } : {}),
     ...(typeof data?.templateIndex === "number" ? { templateIndex: data.templateIndex } : {}),
     ...(data?.key ? { key: String(data.key) } : {}),

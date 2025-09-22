@@ -75,6 +75,7 @@ function normalizeTemplate(key: string, payload: any) {
     title: String(payload?.title ?? ""),
     description: String(payload?.description ?? ""),
     fields: Array.isArray(payload?.fields) ? payload.fields : [],
+    relevantSopId: payload?.relevantSopId,
     createdAt: createdAtIso,
     ...(updatedAtIso ? { updatedAt: updatedAtIso } : {}),
   };
@@ -144,6 +145,7 @@ export async function POST(req: Request) {
     const title = typeof payload?.title === "string" ? payload.title.trim() : "";
     const description = typeof payload?.description === "string" ? payload.description.trim() : "";
     const fields = Array.isArray(payload.fields) ? payload.fields : [];
+    const relevantSopId = payload?.relevantSopId;
     
     const parsedFields = z.array(fieldSchema).safeParse(fields);
 
@@ -185,6 +187,7 @@ export async function POST(req: Request) {
       templateIndex: newIndex,
       createdAt: now,
       updatedAt: now,
+      relevantSopId: relevantSopId || undefined,
       ...(sessionUser?.email ? { createdBy: sessionUser.email } : {}),
     };
 

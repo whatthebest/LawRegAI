@@ -90,4 +90,5 @@ export interface DocumentTemplate {
   description: string;
   fields: TemplateField[];
   createdAt: string; // ISO date string
+  relevantSopId?: string; // Link to a relevant SOP
 }

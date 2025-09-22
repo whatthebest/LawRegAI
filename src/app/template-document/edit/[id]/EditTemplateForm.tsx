@@ -17,6 +17,7 @@ import { FileText, PlusCircle, Trash2 } from "lucide-react";
 import { updateTemplate, type TemplateRecord } from "@/lib/api/templates";
 import useSWR from 'swr';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { SOP } from "@/lib/types";
 
 const fieldTypes = ["Text", "Number", "Checklist", "Person"] as const;
 
@@ -33,6 +34,7 @@ const templateFormSchema = z.object({
   title: z.string().min(5, "Template title must be at least 5 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
   fields: z.array(templateFieldSchema).min(1, "At least one field is required."),
+  relevantSopId: z.string().optional(),
 });
 
 type TemplateFormValues = z.infer<typeof templateFormSchema>;
@@ -60,6 +62,7 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
   const router = useRouter();
 
   const { data: templateData, error, isLoading } = useSWR<{template: TemplateRecord}>(`/api/templates/${templateId}`, fetcher);
+  const { data: sops } = useSWR<SOP[]>('/api/sops', fetcher);
 
   const form = useForm<TemplateFormValues>({
     resolver: zodResolver(templateFormSchema),
@@ -67,6 +70,7 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
       title: "",
       description: "",
       fields: [],
+      relevantSopId: undefined,
     },
   });
 
@@ -83,6 +87,7 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
         title: templateToEdit.title,
         description: templateToEdit.description,
         fields: templateToEdit.fields || [],
+        relevantSopId: templateToEdit.relevantSopId || undefined,
       });
     }
   }, [templateData, form]);
@@ -127,7 +132,6 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
     }
   }
   
-  // FIX: Handle error state after render with useEffect
   useEffect(() => {
     if (!isLoading && (error || !templateData?.template)) {
       toast({
@@ -176,6 +180,30 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
                     <FormControl>
                       <Input placeholder="e.g., Budget Request Form" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="relevantSopId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Relevant SOP (Optional)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an SOP to link this template to" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">No specific SOP</SelectItem>
+                        {sops?.map(sop => (
+                          <SelectItem key={sop.id} value={sop.id}>{sop.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

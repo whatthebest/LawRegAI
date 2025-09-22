@@ -21,6 +21,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import useSWR from 'swr';
+import type { SOP } from "@/lib/types";
 
 
 const fieldTypes = ["Text", "Number", "Checklist", "Person"] as const;
@@ -37,6 +39,7 @@ const templateFormSchema = z.object({
   title: z.string().min(5, "Template title must be at least 5 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
   fields: z.array(templateFieldSchema).min(1, "At least one field is required."),
+  relevantSopId: z.string().optional(),
 });
 
 type TemplateFormValues = z.infer<typeof templateFormSchema>;
@@ -115,10 +118,13 @@ function AddFieldDialog({ onAddField }: { onAddField: (field: z.infer<typeof tem
     );
 }
 
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function CreateTemplateForm() {
   const { toast } = useToast();
   const router = useRouter();
+
+  const { data: sops } = useSWR<SOP[]>('/api/sops', fetcher);
 
   const form = useForm<TemplateFormValues>({
     resolver: zodResolver(templateFormSchema),
@@ -191,6 +197,30 @@ export default function CreateTemplateForm() {
                     <FormControl>
                       <Input placeholder="e.g., Budget Request Form" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+               <FormField
+                control={form.control}
+                name="relevantSopId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Relevant SOP (Optional)</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an SOP to link this template to" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">No specific SOP</SelectItem>
+                        {sops?.map(sop => (
+                          <SelectItem key={sop.id} value={sop.id}>{sop.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

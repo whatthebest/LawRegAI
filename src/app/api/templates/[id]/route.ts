@@ -74,6 +74,7 @@ function normalizeTemplate(key: string, payload: any) {
     title: String(payload?.title ?? ""),
     description: String(payload?.description ?? ""),
     fields: Array.isArray(payload.fields) ? payload.fields : [],
+    relevantSopId: payload?.relevantSopId,
     createdAt: createdAtIso,
     ...(updatedAtIso ? { updatedAt: updatedAtIso } : {}),
   };
@@ -156,6 +157,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             updates.fields = parsed.data;
         }
     }
+    if (typeof payload?.relevantSopId === 'string') {
+        updates.relevantSopId = payload.relevantSopId;
+    }
+
 
     const validUpdates = Object.entries(updates).filter(([k, value]) => {
       if (k === 'fields') return Array.isArray(value) && value.length > 0;
