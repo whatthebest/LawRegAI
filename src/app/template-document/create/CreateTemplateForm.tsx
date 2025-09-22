@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useState } from "react";
+import { Label } from "@/components/ui/label";
 
 
 const fieldTypes = ["Text", "Number", "Checklist", "Person"] as const;
