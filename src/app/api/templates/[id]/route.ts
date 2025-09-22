@@ -80,18 +80,18 @@ function normalizeTemplate(key: string, payload: any) {
   };
 }
 
-async function resolveTemplateKey(id: string): Promise<string | null> {
+async function resolveTemplateKey(decodedId: string): Promise<string | null> {
   const db = getDatabase(getFirebaseAdminApp());
 
-  const direct = await db.ref(`templates/${id}`).get();
+  const direct = await db.ref(`templates/${decodedId}`).get();
   if (direct.exists()) {
-    return id;
+    return decodedId;
   }
 
   const byTemplateId = await db
     .ref("templates")
     .orderByChild("templateId")
-    .equalTo(id)
+    .equalTo(decodedId)
     .limitToFirst(1)
     .get();
   if (byTemplateId.exists()) {
@@ -102,7 +102,7 @@ async function resolveTemplateKey(id: string): Promise<string | null> {
   const byId = await db
     .ref("templates")
     .orderByChild("id")
-    .equalTo(id)
+    .equalTo(decodedId)
     .limitToFirst(1)
     .get();
   if (byId.exists()) {
@@ -115,8 +115,15 @@ async function resolveTemplateKey(id: string): Promise<string | null> {
 
 export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await context.params;
-    const key = await resolveTemplateKey(id);
+    const { id: rawId } = await context.params;
+    let decodedId: string;
+    try {
+      decodedId = decodeURIComponent(rawId);
+    } catch {
+      return NextResponse.json({ error: "invalid_template_id" }, { status: 400 });
+    }
+
+    const key = await resolveTemplateKey(decodedId);
     if (!key) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
@@ -139,8 +146,15 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
 
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await context.params;
-    const key = await resolveTemplateKey(id);
+    const { id: rawId } = await context.params;
+    let decodedId: string;
+    try {
+      decodedId = decodeURIComponent(rawId);
+    } catch {
+      return NextResponse.json({ error: "invalid_template_id" }, { status: 400 });
+    }
+
+    const key = await resolveTemplateKey(decodedId);
     if (!key) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
