@@ -15,6 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { FileText } from "lucide-react";
 import { mockTemplates } from "@/lib/mockData";
+import { updateTemplate } from "@/lib/api/templates";
 
 // Zod schema for the template form
 const templateFormSchema = z.object({
@@ -60,17 +61,24 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
 
   // Handle form submission
   async function onSubmit(data: TemplateFormValues) {
-    // In a real application, you would save this data to your database.
-    console.log("Template data updated:", { id: templateId, ...data });
+    try {
+      await updateTemplate(templateId, data);
 
-    toast({
-      title: "Success!",
-      description: "Document template updated successfully.",
-      className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    });
+      toast({
+        title: "Success!",
+        description: "Document template updated successfully.",
+        className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      });
 
-    // Navigate back to the list page after successful submission
-    router.push("/sops?tab=templates");
+      router.push("/sops?tab=templates");
+    } catch (error: any) {
+      const message = error?.message ?? "Failed to update template";
+      toast({
+        title: "Something went wrong",
+        description: message,
+        variant: "destructive",
+      });
+    }
   }
 
   return (

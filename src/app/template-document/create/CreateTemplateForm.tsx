@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import MainLayout from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { FileText } from "lucide-react";
+import { createTemplate } from "@/lib/api/templates";
 
 // Zod schema for the template form
 const templateFormSchema = z.object({
@@ -24,6 +26,7 @@ type TemplateFormValues = z.infer<typeof templateFormSchema>;
 
 export default function CreateTemplateForm() {
   const { toast } = useToast();
+  const router = useRouter();
 
   const form = useForm<TemplateFormValues>({
     resolver: zodResolver(templateFormSchema),
@@ -36,17 +39,24 @@ export default function CreateTemplateForm() {
 
   // Handle form submission
   async function onSubmit(data: TemplateFormValues) {
-    // In a real application, you would save this data to your database.
-    console.log("Template data submitted:", data);
+    try {
+      await createTemplate(data);
 
-    toast({
-      title: "Success!",
-      description: "Document template created successfully.",
-      className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    });
+      toast({
+        title: "Success!",
+        description: "Document template created successfully.",
+        className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      });
 
-    // Reset the form for a new entry
-    form.reset();
+      router.push("/sops?tab=templates");
+    } catch (error: any) {
+      const message = error?.message ?? "Failed to create template";
+      toast({
+        title: "Something went wrong",
+        description: message,
+        variant: "destructive",
+      });
+    }
   }
 
   return (
