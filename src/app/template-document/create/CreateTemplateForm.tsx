@@ -217,7 +217,6 @@ export default function CreateTemplateForm() {
 
               {/* Live Preview Area */}
               <div className="space-y-4">
-                  <FormLabel>Template Fields Preview</FormLabel>
                   {fields.length === 0 ? (
                        <div className="text-center text-muted-foreground py-6 border-2 border-dashed rounded-lg">
                         <p>No fields added yet.</p>
