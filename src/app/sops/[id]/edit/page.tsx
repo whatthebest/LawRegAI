@@ -14,12 +14,15 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { PlusCircle, Trash2 } from "lucide-react";
-import { sopDepartments, mockSops } from "@/lib/mockData";
+import { sopDepartments } from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState} from "react";
 import Link from "next/link";
 import { FileUpload } from "@/components/FileUpload";
+import useSWR from "swr";
+import type { SOP } from "@/lib/types";
+
 
 const sopStepSchema = z.object({
   id: z.string(),
@@ -53,6 +56,26 @@ const sopFormSchema = z.object({
 
 type SopFormValues = z.infer<typeof sopFormSchema>;
 
+const stepStatusOptions: ReadonlyArray<SopFormValues["steps"][number]["status"]> = [
+  "Draft",
+  "Review",
+  "Approved",
+  "Pending",
+  "In Progress",
+  "Rejected",
+] as const;
+
+const fetchSop = async (url: string): Promise<SOP | null> => {
+  const response = await fetch(url, { cache: "no-store" });
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to load SOP: ${response.status}`);
+  }
+  return (await response.json()) as SOP;
+};
+
 export default function EditSopPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -60,7 +83,14 @@ export default function EditSopPage() {
   const params = useParams();
   const sopIdToEdit = params.id as string;
   
-  const [dateCreated, setDateCreated] = useState('');
+  const { data: sopData, error, isLoading } = useSWR<SOP | null>(
+    sopIdToEdit ? `/api/sops/${encodeURIComponent(sopIdToEdit)}` : null,
+    fetchSop,
+    { revalidateOnFocus: false }
+  );
+
+  const [dateCreated, setDateCreated] = useState("");
+  const lastLoadedSopRef = useRef<string | null>(null);
 
   const form = useForm<SopFormValues>({
     resolver: zodResolver(sopFormSchema),
@@ -74,7 +104,8 @@ export default function EditSopPage() {
       attachments: [],
     },
   });
-  
+
+
   const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "steps",
@@ -84,34 +115,89 @@ export default function EditSopPage() {
   const steps = form.watch("steps");
 
   useEffect(() => {
-    if (sopIdToEdit) {
-      const sopToEdit = mockSops.find(sop => sop.id === sopIdToEdit || sop.sopId === sopIdToEdit);
-      if (sopToEdit) {
-        form.reset({
-          sopId: sopToEdit.sopId,
-          title: sopToEdit.title,
-          description: sopToEdit.description,
-          department: sopToEdit.department,
-          cluster: sopToEdit.cluster,
-          group: sopToEdit.group,
-          section: sopToEdit.section,
-          responsiblePerson: sopToEdit.responsiblePerson,
-          sla: sopToEdit.sla,
-          attachments: [], // Cannot pre-populate file inputs
-        });
-        
-        const formattedSteps = sopToEdit.steps.map(s => ({
-          ...s,
-          nextStepYes: s.nextStepYes,
-          nextStepNo: s.nextStepNo,
-          attachments: [], // Cannot pre-populate file inputs
-        }));
-        replace(formattedSteps);
-
-        setDateCreated(new Date(sopToEdit.createdAt).toLocaleDateString('en-CA'));
-      }
+    if (!sopData) {
+      return;
     }
-  }, [sopIdToEdit, form, replace]);
+
+    const normalizedId = sopData?.id ?? sopData?.sopId ?? sopIdToEdit ?? "";
+    if (lastLoadedSopRef.current === normalizedId) {
+      return;
+    }
+
+    const departmentValue = (
+      sopDepartments.includes(sopData.department)
+        ? sopData.department
+        : sopDepartments[0] ?? "Operations"
+    ) as SopFormValues["department"];
+
+    form.reset({
+      sopId: sopData.sopId ?? sopData.id ?? sopIdToEdit ?? "",
+      title: sopData.title ?? "",
+      description: sopData.description ?? "",
+      department: departmentValue,
+      cluster: sopData.cluster ?? "",
+      group: sopData.group ?? "",
+      section: sopData.section ?? "",
+      responsiblePerson: sopData.responsiblePerson ?? sopData.owner ?? user?.name ?? "",
+      sla:
+        typeof sopData.sla === "number" && !Number.isNaN(sopData.sla)
+          ? sopData.sla
+          : Number(sopData.sla) || 1,
+      attachments: [],
+      steps: [],
+    });
+
+    const formattedSteps: SopFormValues["steps"] = (sopData.steps ?? []).map((step, index) => {
+      const parsedStepOrder =
+        typeof step.stepOrder === "number" && !Number.isNaN(step.stepOrder)
+          ? step.stepOrder
+          : Number(step.stepOrder) || index + 1;
+      const parsedSla =
+        typeof step.sla === "number" && !Number.isNaN(step.sla)
+          ? step.sla
+          : Number(step.sla) || 1;
+      const nextYes =
+        step.nextStepYes === undefined || step.nextStepYes === null
+          ? ""
+          : String(step.nextStepYes);
+      const nextNo =
+        step.nextStepNo === undefined || step.nextStepNo === null
+          ? ""
+          : String(step.nextStepNo);
+      const statusValue =
+        typeof step.status === "string" && stepStatusOptions.includes(step.status as any)
+          ? (step.status as SopFormValues["steps"][number]["status"])
+          : "Draft";
+
+      return {
+        id: step.id ?? `step-${index}`,
+        stepOrder: parsedStepOrder,
+        title: step.title ?? "",
+        detail: step.detail ?? "",
+        stepType: (step.stepType === "Decision" ? "Decision" : "Sequence") as SopFormValues["steps"][number]["stepType"],
+        nextStepYes: nextYes,
+        nextStepNo: nextNo,
+        sla: parsedSla,
+        owner: step.owner ?? "",
+        reviewer: step.reviewer ?? "",
+        approver: step.approver ?? "",
+        status: statusValue,
+        attachments: [] as File[],
+      };
+    });
+
+    replace(formattedSteps);
+    lastLoadedSopRef.current = normalizedId;
+  }, [sopData, form, replace, sopIdToEdit, user?.name]);
+
+  useEffect(() => {
+    if (!sopData?.createdAt) {
+      setDateCreated("");
+      return;
+    }
+    const created = new Date(sopData.createdAt as any);
+    setDateCreated(Number.isNaN(created.getTime()) ? "" : created.toLocaleDateString("en-CA"));
+  }, [sopData?.createdAt]);
 
   const handleAppend = () => {
     append({ id: `new-step-${Date.now()}`, stepOrder: fields.length + 1, title: '', detail: '', stepType: 'Sequence', sla: 1, owner: '', reviewer: '', approver: '', status: 'Draft', nextStepYes: '', nextStepNo: '', attachments: [] });
@@ -139,24 +225,46 @@ export default function EditSopPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 mb-8">
-        <Link href={`/sops/${sopIdToEdit}`} className="text-sm text-primary hover:underline">
-            &larr; Back to SOP Timeline
-        </Link>
-        <h1 className="text-4xl font-bold text-primary">Edit SOP</h1>
-        <p className="text-lg text-muted-foreground">
-            Update the details for this Standard Operating Procedure.
-        </p>
-      </div>
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <Card>
+      {isLoading && <div className="py-8 text-muted-foreground">Loading SOP…</div>}
+      {error && !isLoading && !sopData && (
+        <div className="py-8 text-red-600">Failed to load SOP for editing.</div>
+      )}
+      {!sopData && !isLoading && !error && (
+        <div className="max-w-2xl mx-auto mt-16">
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>SOP Details</CardTitle>
-              <CardDescription>Provide the main information for the SOP.</CardDescription>
+            <CardTitle>SOP not found</CardTitle>
+            <CardDescription>We couldn’t find this SOP. It may have been removed or the URL is wrong.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent>
+              <Button asChild>
+                <Link href="/sops">&larr; Back to SOP Repository</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {sopData && (
+        <>
+          <div className="space-y-4 mb-8">
+            <Link href={`/sops/${sopIdToEdit}`} className="text-sm text-primary hover:underline">
+                &larr; Back to SOP Timeline
+            </Link>
+            <h1 className="text-4xl font-bold text-primary">Edit SOP</h1>
+            <p className="text-lg text-muted-foreground">
+                Update the details for this Standard Operating Procedure.
+            </p>
+          </div>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>SOP Details</CardTitle>
+                  <CardDescription>Provide the main information for the SOP.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                  <FormField control={form.control} name="sopId" render={({ field }) => (
                   <FormItem>
@@ -354,6 +462,8 @@ export default function EditSopPage() {
           </div>
         </form>
       </Form>
+      </>
+      )}
     </MainLayout>
   );
 }
