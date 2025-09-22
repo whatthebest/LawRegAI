@@ -47,3 +47,5 @@ firestore-debug.log
 .env.local
 
 src/firebaseConfig.ts
+
+secrets/

@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "firebase-mcp-http": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@gannonh/firebase-mcp@latest",
+        "experimental:mcp"
+      ],
+      "env": {
+        "MCP_TRANSPORT": "http",
+        "MCP_HTTP_PORT": "3000",
+        "SERVICE_ACCOUNT_KEY_PATH": "/home/user/studio/secrets/sa.json",
+        "FIREBASE_STORAGE_BUCKET": "sop-central-y31wb.appspot.com"
+      }
+    },
+    "firebase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "firebase-tools@latest",
+        "experimental:mcp",
+        "--only",
+        "auth,firestore",
+        "@modelcontextprotocol/server-filesystem"
+      ]
+    }
+  }
+}
