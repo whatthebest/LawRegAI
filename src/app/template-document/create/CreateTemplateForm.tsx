@@ -223,17 +223,21 @@ export default function CreateTemplateForm() {
                         <p className="text-sm">Click "Add Field" to get started.</p>
                       </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                          {fields.map((field, index) => (
-                            <div key={field.id} className="flex items-center gap-4 p-3 border rounded-lg bg-background/50">
-                                <div className="flex-1 space-y-1">
-                                    <p className="font-medium">{form.watch(`fields.${index}.label`)}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Name: <span className="font-mono">{form.watch(`fields.${index}.name`)}</span>, 
-                                        Type: <span className="font-mono">{form.watch(`fields.${index}.type`)}</span>
-                                    </p>
-                                </div>
-                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => remove(index)}>
+                            <div key={field.id} className="flex items-start gap-3">
+                                <FormItem className="flex-1">
+                                    <FormLabel>{form.watch(`fields.${index}.label`)}</FormLabel>
+                                    <FormControl>
+                                        <Input 
+                                            readOnly 
+                                            disabled 
+                                            placeholder={`This is a "${form.watch(`fields.${index}.type`)}" field.`} 
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                <Button type="button" variant="ghost" size="icon" className="mt-8 h-9 w-9" onClick={() => remove(index)}>
                                     <Trash2 className="w-4 h-4 text-destructive" />
                                 </Button>
                             </div>
