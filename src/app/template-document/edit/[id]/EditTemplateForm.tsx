@@ -126,19 +126,26 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
       });
     }
   }
+  
+  // FIX: Handle error state after render with useEffect
+  useEffect(() => {
+    if (!isLoading && (error || !templateData?.template)) {
+      toast({
+        title: "Template not found",
+        description: "The requested template could not be found.",
+        variant: "destructive",
+      });
+      router.push("/sops?tab=templates");
+    }
+  }, [isLoading, error, templateData, toast, router]);
+
 
   if (isLoading) {
     return <MainLayout><p>Loading template...</p></MainLayout>
   }
 
   if (error || !templateData?.template) {
-     toast({
-        title: "Template not found",
-        description: "The requested template could not be found.",
-        variant: "destructive",
-      });
-      router.push("/sops?tab=templates");
-      return <MainLayout><p className="text-destructive">Template not found.</p></MainLayout>
+      return <MainLayout><p className="text-destructive">Template not found. Redirecting...</p></MainLayout>
   }
 
   return (
