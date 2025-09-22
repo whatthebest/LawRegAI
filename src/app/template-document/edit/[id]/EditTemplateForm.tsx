@@ -140,12 +140,8 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
   }, [isLoading, error, templateData, toast, router]);
 
 
-  if (isLoading) {
+  if (isLoading || error || !templateData?.template) {
     return <MainLayout><p>Loading template...</p></MainLayout>
-  }
-
-  if (error || !templateData?.template) {
-      return <MainLayout><p className="text-destructive">Template not found. Redirecting...</p></MainLayout>
   }
 
   return (
