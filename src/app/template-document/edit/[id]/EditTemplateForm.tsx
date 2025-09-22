@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -13,11 +13,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, PlusCircle, Trash2 } from "lucide-react";
+import { FileText, PlusCircle, Trash2, Workflow } from "lucide-react";
 import { updateTemplate, type TemplateRecord } from "@/lib/api/templates";
 import useSWR from 'swr';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SOP } from "@/lib/types";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { SopTimeline } from "@/components/SopTimeline";
 
 const fieldTypes = ["Text", "Number", "Checklist", "Person"] as const;
 
@@ -56,6 +60,71 @@ const slugify = (str: string) =>
     .replace(/[\s_-]+/g, "_")
     .replace(/^-+|-+$/g, "");
 
+// --- Add Field Dialog Component ---
+function AddFieldDialog({ onAddField }: { onAddField: (field: z.infer<typeof templateFieldSchema>) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [label, setLabel] = useState('');
+    const [name, setName] = useState('');
+    const [type, setType] = useState<typeof fieldTypes[number]>('Text');
+
+    const handleLabelChange = (value: string) => {
+        setLabel(value);
+        setName(slugify(value));
+    };
+
+    const handleSave = () => {
+        if (label.trim() && name.trim()) {
+            onAddField({ label, name, type });
+            setLabel('');
+            setName('');
+            setType('Text');
+            setIsOpen(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                    <PlusCircle className="w-4 h-4" />
+                    Add Field
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add New Field</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="field-label">Field Label</Label>
+                        <Input id="field-label" value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder="e.g., Project Name" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="field-name">Field Name (auto)</Label>
+                        <Input id="field-name" value={name} readOnly placeholder="e.g., project_name" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="field-type">Field Type</Label>
+                        <Select value={type} onValueChange={(v) => setType(v as any)}>
+                            <SelectTrigger id="field-type">
+                                <SelectValue placeholder="Select a type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {fieldTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="ghost">Cancel</Button>
+                    </DialogClose>
+                    <Button type="button" onClick={handleSave} disabled={!label.trim() || !name.trim()}>Add</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function EditTemplateForm({ templateId }: EditTemplateFormProps) {
   const { toast } = useToast();
@@ -79,6 +148,12 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
     name: "fields",
   });
 
+  const selectedSopId = form.watch("relevantSopId");
+  const { data: selectedSop } = useSWR<SOP>(
+    selectedSopId && selectedSopId !== "none" ? `/api/sops/${selectedSopId}` : null,
+    fetcher
+  );
+
   // Load the template data when it's fetched
   useEffect(() => {
     const templateToEdit = templateData?.template;
@@ -92,23 +167,16 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
     }
   }, [templateData, form]);
 
-  const watchFieldArray = form.watch("fields");
-  const controlledFields = fields.map((field, index) => {
-    return {
-      ...field,
-      ...watchFieldArray[index]
-    };
-  });
-
-  const handleAddField = () => {
-    append({ name: "", label: "", type: "Text" });
-  };
-
-  const handleLabelChange = (index: number, value: string) => {
-    form.setValue(`fields.${index}.label`, value);
-    form.setValue(`fields.${index}.name`, slugify(value));
-  };
-
+  useEffect(() => {
+    if (!isLoading && (error || !templateData?.template)) {
+        toast({
+          title: "Template not found",
+          description: "The requested template could not be found.",
+          variant: "destructive",
+        });
+        router.push("/sops?tab=templates");
+    }
+  }, [isLoading, error, templateData, toast, router]);
 
   // Handle form submission
   async function onSubmit(data: TemplateFormValues) {
@@ -131,22 +199,11 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
       });
     }
   }
-  
-  useEffect(() => {
-    if (!isLoading && (error || !templateData?.template)) {
-      toast({
-        title: "Template not found",
-        description: "The requested template could not be found.",
-        variant: "destructive",
-      });
-      router.push("/sops?tab=templates");
-    }
-  }, [isLoading, error, templateData, toast, router]);
 
-
-  if (isLoading || error || !templateData?.template) {
-    return <MainLayout><p>Loading template...</p></MainLayout>
+  if (isLoading || !templateData?.template) {
+    return <MainLayout><div className="p-8 text-center text-muted-foreground">Loading template...</div></MainLayout>
   }
+
 
   return (
     <MainLayout>
@@ -166,9 +223,12 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <Card className="max-w-4xl mx-auto">
-            <CardHeader>
-              <CardTitle>Template Details</CardTitle>
-              <CardDescription>Update the title, description, and content of the template.</CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <CardTitle>Template Details</CardTitle>
+                <CardDescription>Update the title, description, and content of the template.</CardDescription>
+              </div>
+              <AddFieldDialog onAddField={(field) => append(field)} />
             </CardHeader>
             <CardContent className="space-y-6">
               <FormField
@@ -191,19 +251,38 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Relevant SOP (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an SOP to link this template to" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">No specific SOP</SelectItem>
-                        {sops?.map(sop => (
-                          <SelectItem key={sop.id} value={sop.id}>{sop.title}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an SOP to link this template to" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">No specific SOP</SelectItem>
+                          {sops?.map(sop => (
+                            <SelectItem key={sop.id} value={sop.id}>{sop.title}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedSop && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="shrink-0">
+                              <Workflow className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>SOP Preview: {selectedSop.title}</DialogTitle>
+                            </DialogHeader>
+                            <div className="max-h-[70vh] overflow-y-auto p-4">
+                              <SopTimeline steps={selectedSop.steps ?? []} />
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -226,83 +305,53 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
                   </FormItem>
                 )}
               />
+
+              <div className="space-y-4">
+                {fields.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-6 border-2 border-dashed rounded-lg">
+                    <p>No fields added yet.</p>
+                    <p className="text-sm">Click "Add Field" to get started.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {fields.map((field, index) => (
+                      <div key={field.id} className="flex items-start gap-3">
+                        <FormItem className="flex-1">
+                          <FormLabel>{form.watch(`fields.${index}.label`)}</FormLabel>
+                          <FormControl>
+                            {form.watch(`fields.${index}.type`) === 'Checklist' ? (
+                              <div className="flex items-center space-x-2 h-10">
+                                <Checkbox disabled />
+                                <Label className="text-sm font-normal text-muted-foreground">
+                                  This is a "{form.watch(`fields.${index}.type`)}" field.
+                                </Label>
+                              </div>
+                            ) : (
+                              <Input
+                                readOnly
+                                disabled
+                                placeholder={`This is a "${form.watch(`fields.${index}.type`)}" field.`}
+                              />
+                            )}
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                        <Button type="button" variant="ghost" size="icon" className="mt-8 h-9 w-9" onClick={() => remove(index)}>
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {form.formState.errors.fields && (
+                  <p className="text-sm font-medium text-destructive">
+                    {form.formState.errors.fields.message as string}
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
           
-           <Card className="max-w-4xl mx-auto">
-             <CardHeader>
-              <CardTitle>Template Fields</CardTitle>
-              <CardDescription>Add and configure the fields for this template.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-               {controlledFields.map((field, index) => (
-                <div key={field.id} className="p-4 border rounded-lg space-y-4 relative bg-background/50">
-                  <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => remove(index)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                     <FormField
-                        control={form.control}
-                        name={`fields.${index}.label`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Field Label</FormLabel>
-                            <FormControl>
-                              <Input {...field} onChange={(e) => handleLabelChange(index, e.target.value)} placeholder="e.g., Project Name" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`fields.${index}.name`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Field Name (auto)</FormLabel>
-                            <FormControl>
-                              <Input {...field} readOnly placeholder="e.g., project_name"/>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`fields.${index}.type`}
-                        render={({ field }) => (
-                           <FormItem>
-                            <FormLabel>Field Type</FormLabel>
-                             <Select onValueChange={field.onChange} value={field.value}>
-                               <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select a type" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {fieldTypes.map(type => (
-                                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                  </div>
-                </div>
-              ))}
-              <Button type="button" variant="outline" onClick={handleAddField} className="gap-2">
-                <PlusCircle className="w-4 h-4" /> Add Field
-              </Button>
-               {form.formState.errors.fields && (
-                  <p className="text-sm font-medium text-destructive">
-                    {form.formState.errors.fields.message}
-                  </p>
-                )}
-            </CardContent>
-           </Card>
-
           <div className="max-w-4xl mx-auto flex justify-end">
             <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting ? "Saving..." : "Update Template"}

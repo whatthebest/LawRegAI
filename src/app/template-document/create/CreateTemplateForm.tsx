@@ -13,16 +13,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, PlusCircle, Trash2 } from "lucide-react";
+import { FileText, PlusCircle, Trash2, Workflow } from "lucide-react";
 import { createTemplate } from "@/lib/api/templates";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import useSWR from 'swr';
 import type { SOP } from "@/lib/types";
+import { SopTimeline } from "@/components/SopTimeline";
 
 
 const fieldTypes = ["Text", "Number", "Checklist", "Person"] as const;
@@ -140,6 +140,12 @@ export default function CreateTemplateForm() {
     name: "fields",
   });
 
+  const selectedSopId = form.watch("relevantSopId");
+  const { data: selectedSop } = useSWR<SOP>(
+    selectedSopId && selectedSopId !== "none" ? `/api/sops/${selectedSopId}` : null,
+    fetcher
+  );
+
   // Handle form submission
   async function onSubmit(data: TemplateFormValues) {
     try {
@@ -208,19 +214,38 @@ export default function CreateTemplateForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Relevant SOP (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an SOP to link this template to" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">No specific SOP</SelectItem>
-                        {sops?.map(sop => (
-                          <SelectItem key={sop.id} value={sop.id}>{sop.title}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select an SOP to link this template to" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">No specific SOP</SelectItem>
+                            {sops?.map(sop => (
+                              <SelectItem key={sop.id} value={sop.id}>{sop.title}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedSop && (
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="shrink-0">
+                                        <Workflow className="w-4 h-4 text-muted-foreground" />
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-2xl">
+                                    <DialogHeader>
+                                        <DialogTitle>SOP Preview: {selectedSop.title}</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="max-h-[70vh] overflow-y-auto p-4">
+                                        <SopTimeline steps={selectedSop.steps ?? []} />
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -244,8 +269,6 @@ export default function CreateTemplateForm() {
                 )}
               />
               
-              <Separator />
-
               {/* Live Preview Area */}
               <div className="space-y-4">
                   {fields.length === 0 ? (
