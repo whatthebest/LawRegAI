@@ -52,6 +52,10 @@ const fetcher = (url: string) => fetch(url, { cache: 'no-store' }).then(res => {
   return res.json();
 });
 
+const templateFetcher = ([_key, id]: readonly [string, string]) =>
+  fetcher(`/api/templates/${encodeURIComponent(id)}`);
+
+
 const slugify = (str: string) =>
   str
     .toLowerCase()
@@ -131,10 +135,13 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
   const router = useRouter();
 
   const shouldFetchTemplate = Boolean(templateId);
-  const templateApiPath = shouldFetchTemplate
-    ? `/api/templates/${encodeURIComponent(templateId)}`
+  const templateSWRKey = shouldFetchTemplate
+    ? (["template", templateId] as const)
     : null;
-  const { data: templateData, error, isLoading } = useSWR<{template: TemplateRecord}>(templateApiPath, fetcher);
+    const { data: templateData, error, isLoading } = useSWR<{ template: TemplateRecord }>(
+      templateSWRKey,
+      templateFetcher
+    );
   const { data: sops } = useSWR<SOP[]>('/api/sops', fetcher);
 
   const form = useForm<TemplateFormValues>({
