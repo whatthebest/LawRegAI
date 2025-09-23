@@ -130,7 +130,11 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
   const { toast } = useToast();
   const router = useRouter();
 
-  const { data: templateData, error, isLoading } = useSWR<{template: TemplateRecord}>(`/api/templates/${templateId}`, fetcher);
+  const shouldFetchTemplate = Boolean(templateId);
+  const templateApiPath = shouldFetchTemplate
+    ? `/api/templates/${encodeURIComponent(templateId)}`
+    : null;
+  const { data: templateData, error, isLoading } = useSWR<{template: TemplateRecord}>(templateApiPath, fetcher);
   const { data: sops } = useSWR<SOP[]>('/api/sops', fetcher);
 
   const form = useForm<TemplateFormValues>({
@@ -168,16 +172,18 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
   }, [templateData, form]);
 
   useEffect(() => {
-    if (!isLoading && (error || !templateData?.template)) {
-        toast({
-          title: "Template not found",
-          description: "The requested template could not be found.",
-          variant: "destructive",
-        });
-        router.push("/sops?tab=templates");
+    if (!shouldFetchTemplate) {
+      return;
     }
-  }, [isLoading, error, templateData, toast, router]);
-
+    if (!isLoading && (error || !templateData?.template)) {
+      toast({
+        title: "Template not found",
+        description: "The requested template could not be found.",
+        variant: "destructive",
+      });
+      router.push("/sops?tab=templates");
+    }
+  }, [shouldFetchTemplate, isLoading, error, templateData, toast, router]);
   // Handle form submission
   async function onSubmit(data: TemplateFormValues) {
     try {
