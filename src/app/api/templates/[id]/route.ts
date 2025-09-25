@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { cert, getApps, initializeApp, getApp, type App } from "firebase-admin/app";
 import { getDatabase } from "firebase-admin/database";
 import { z } from "zod";
+import { safeDecodeURIComponent } from "@/lib/urls";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -116,12 +117,7 @@ async function resolveTemplateKey(decodedId: string): Promise<string | null> {
 export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id: rawId } = await context.params;
-    let decodedId: string;
-    try {
-      decodedId = decodeURIComponent(rawId);
-    } catch {
-      return NextResponse.json({ error: "invalid_template_id" }, { status: 400 });
-    }
+    const decodedId = safeDecodeURIComponent(rawId);
 
     const key = await resolveTemplateKey(decodedId);
     if (!key) {
@@ -147,12 +143,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id: rawId } = await context.params;
-    let decodedId: string;
-    try {
-      decodedId = decodeURIComponent(rawId);
-    } catch {
-      return NextResponse.json({ error: "invalid_template_id" }, { status: 400 });
-    }
+    const decodedId = safeDecodeURIComponent(rawId);
 
     const key = await resolveTemplateKey(decodedId);
     if (!key) {
