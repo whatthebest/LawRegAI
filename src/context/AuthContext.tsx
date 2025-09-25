@@ -10,7 +10,10 @@ import {
   signOut,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { getDatabase, ref, get } from "firebase/database";
+import {
+  getDatabase, ref, get,
+  query, orderByChild, equalTo, limitToFirst
+} from "firebase/database";
 import type { User } from "@/lib/types";
 import { useRouter } from 'next/navigation';
 
@@ -30,11 +33,82 @@ function normalizeRole(raw: MaybeRole): SystemRole | undefined {
   return map[norm];
 }
 
+function extractRole(profile: any, claimRole?: string) {
+  const candidates: MaybeRole[] = [];
+
+  if (profile && typeof profile === "object") {
+    candidates.push(
+      profile.systemRole,
+      profile.systemrole,
+      profile.SystemRole,
+      profile.system_role,
+      profile["system-role"],
+      profile["system role"],
+      profile.role,
+      profile.Role
+    );
+  }
+
+  candidates.push(claimRole);
+
+  return candidates.find((value) => typeof value === "string" && value.trim().length > 0);
+}
+
 async function loadProfileRTDB(u: FirebaseUser) {
   try {
-    const db = getDatabase(app); // use the same app as firebase-client.ts
-    const snap = await get(ref(db, `users/${u.uid}`));
-    return snap.exists() ? (snap.val() as any) : null;
+    const db = getDatabase(app);
+
+    // (A) try direct path (in case you ever switch to uid-keyed rows)
+    let snap = await get(ref(db, `users/${u.uid}`));
+    if (snap.exists()) return snap.val();
+
+    // (B) try by uid
+    const byUid = query(ref(db, "users"), orderByChild("uid"), equalTo(u.uid), limitToFirst(1));
+    snap = await get(byUid);
+    if (snap.exists()) {
+      const val = snap.val() as Record<string, any>;
+      return Object.values(val)[0];
+    }
+
+    // (C) try by email
+    if (u.email) {
+      const byEmail = query(ref(db, "users"), orderByChild("email"), equalTo(u.email), limitToFirst(1));
+      const s2 = await get(byEmail);
+      if (s2.exists()) {
+        const val = s2.val() as Record<string, any>;
+        return Object.values(val)[0];
+      }
+    }
+
+    // (D) tolerant final fallback: scan /users and compare emails case-insensitively
+    const all = await get(ref(db, "users"));
+    if (all.exists()) {
+      const entries = Object.values(all.val() as Record<string, any>) as any[];
+
+      const norm = (v: unknown) =>
+        (typeof v === "string" ? v : "")
+          .normalize("NFC")
+          .trim()
+          .toLowerCase();
+
+      const myEmail = norm(u.email);
+
+      // Accept multiple possible email field names
+      const candidates = entries.find((row) => {
+        const rowEmail =
+          norm(row?.email) ||
+          norm(row?.Email) ||
+          norm(row?.eMail) ||
+          norm(row?.workEmail) ||
+          norm(row?.corporateEmail);
+        const rowUid = typeof row?.uid === "string" ? row.uid : "";
+        return (rowUid && rowUid === u.uid) || (rowEmail && rowEmail === myEmail);
+      });
+
+      if (candidates) return candidates;
+    }
+
+    return null;
   } catch (e) {
     console.debug("loadProfileRTDB error:", e);
     return null;
@@ -51,7 +125,7 @@ async function loadRoleFromClaims(u: FirebaseUser) {
 }
 
 function toAppUser(u: FirebaseUser, profile?: any, claimRole?: string): User {
-  const roleFromProfile = profile?.systemRole ?? profile?.role ?? profile?.Role;
+  const roleFromProfile = extractRole(profile, claimRole);
   return {
     name: profile?.fullname ?? u.displayName ?? (u.email ? u.email.split("@")[0]! : ""),
     email: u.email ?? "",
@@ -89,7 +163,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           loadProfileRTDB(u),
           loadRoleFromClaims(u),
         ]);
-        const appUser = toAppUser(u, profile, claimRole);
+        const appUser = toAppUser(u, profile, claimRole); 
+        if (typeof window !== "undefined") (window as any).__authDebug = { profile, claimRole, appUser };
         console.debug("AuthContext user:", appUser); // TEMP: verify systemRole
         setUser(appUser);
       } finally {

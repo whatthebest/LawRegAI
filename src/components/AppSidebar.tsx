@@ -38,7 +38,7 @@ const navLinks = [
 ];
 
 export default function AppSidebar() {
-  const { user, logout } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const { setTheme } = useTheme();
   const pathname = usePathname();
 
