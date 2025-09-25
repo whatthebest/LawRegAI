@@ -378,7 +378,13 @@ function SopsPageContent() {
                                       </DialogHeader>
                                       <div className="max-h-[70vh] overflow-y-auto p-4 space-y-2">
                                         {relevantTemplates.map(template => (
-                                          <Link key={template.id} href={`/template-document/edit/${template.id}`} className="block">
+                                          <Link
+                                          key={(template.key ?? template.id ?? template.templateId) as string}
+                                          href={`/template-document/edit/${encodeURIComponent(
+                                            (template.key ?? template.id ?? template.templateId ?? "").toString().trim()
+                                          )}`}
+                                          className="block"
+                                        >
                                             <Card className="hover:bg-muted/50 transition-colors">
                                               <CardContent className="p-3">
                                                 <p className="font-semibold">{template.title}</p>
@@ -543,7 +549,8 @@ function SopsPageContent() {
                   <TableBody>
                     {templates.length > 0 ? (
                       templates.map((template) => {
-                        const slug = template.templateId ?? template.id ?? template.key ?? "";
+                        const rawSlug = (template.key ?? template.id ?? template.templateId ?? "").toString();
+                        const slug = rawSlug.normalize("NFC").trim();
                         return (
                           <TableRow key={template.templateId ?? template.id ?? template.key ?? template.title}>
                             <TableCell className="font-medium">{template.title}</TableCell>
@@ -554,11 +561,19 @@ function SopsPageContent() {
                                 return Number.isNaN(dt.getTime()) ? "-" : format(dt, "MMMM d, yyyy");
                               })()}
                             </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="outline" size="sm" asChild>
-                                <Link href={`/template-document/edit/${encodeURIComponent(slug)}`}>Edit</Link>
-                              </Button>
-                            </TableCell>
+                              <TableCell className="text-right">
+                                {slug ? (
+                                  <Button variant="outline" size="sm" asChild>
+                                    <Link href={`/template-document/edit/${encodeURIComponent(slug)}`} prefetch={false}>
+                                      Edit
+                                    </Link>
+                                  </Button>
+                                ) : (
+                                  <Button variant="outline" size="sm" disabled title="Missing template identifier">
+                                    Edit
+                                  </Button>
+                                )}
+                              </TableCell>
                           </TableRow>
                         );
                       })
