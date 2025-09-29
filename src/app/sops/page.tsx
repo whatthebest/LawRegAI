@@ -4,6 +4,7 @@
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import MainLayout from "@/components/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -93,13 +94,18 @@ function SopsPageContent() {
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
 
+  const { user } = useAuth();
+  const isManager = user?.systemRole === "Manager";
+  const allowedTabs = useMemo(() => (isManager ? ["list", "manager", "templates"] : ["list", "templates"]), [isManager]);
+
   // show spinner only if load takes >300ms
   const showSpinner = useDelayedSpinner(loading, 300);
   const templatesSpinner = useDelayedSpinner(templatesLoading, 300);
 
   useEffect(() => {
-    setActiveTab(queryTab);
-  }, [queryTab]);
+    if (allowedTabs.includes(queryTab)) setActiveTab(queryTab);
+    else setActiveTab("list");
+  }, [queryTab, allowedTabs]);
 
   useEffect(() => {
     let alive = true;
@@ -199,6 +205,12 @@ function SopsPageContent() {
   }, [activeTab, templates.length]);
 
 
+  const handleTabChange = (next: string) => {
+    setActiveTab(allowedTabs.includes(next) ? next : "list");
+  };
+
+  const displayTab = allowedTabs.includes(activeTab) ? activeTab : "list";
+
   const filteredSops = useMemo(() => {
     return sops
       .filter((sop) => departmentFilter === "all" || sop.department === departmentFilter)
@@ -268,14 +280,16 @@ function SopsPageContent() {
         </Link>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 mb-4">
+      <Tabs value={displayTab} onValueChange={handleTabChange}>
+        <TabsList className={`grid w-full mb-4 ${isManager ? "grid-cols-3" : "grid-cols-2"}`}>
           <TabsTrigger value="list" className="gap-2">
             <List className="w-4 h-4" /> List of SOPs
           </TabsTrigger>
-          <TabsTrigger value="manager" className="gap-2">
-            <UserCheck className="w-4 h-4" /> Manager Review
-          </TabsTrigger>
+          {isManager && (
+            <TabsTrigger value="manager" className="gap-2">
+              <UserCheck className="w-4 h-4" /> Manager Review
+            </TabsTrigger>
+          )}
           <TabsTrigger value="templates" className="gap-2">
             <FileText className="w-4 h-4" /> Document Templates
           </TabsTrigger>
@@ -436,70 +450,70 @@ function SopsPageContent() {
           </Card>
         </TabsContent>
 
-        {/* Manager Review */}
-        <TabsContent value="manager">
-          <Card>
+        {isManager && (
+          <TabsContent value="manager">
+            <Card>
             <CardHeader>
-              <CardTitle>Manager Review</CardTitle>
-              <CardDescription>Review, approve, or reject SOPs that are pending action.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {showSpinner ? (
-                <div className="space-y-3 animate-pulse">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="h-20 bg-muted/60 rounded" />
-                  ))}
-                </div>
-              ) : (
-                <Accordion type="multiple" className="w-full space-y-4">
-                  {reviewSops.map((sop) => (
-                    <AccordionItem value={sop.id ?? sop.sopId} key={sop.id ?? sop.sopId} className="border-b-0">
-                      <Card className="shadow-md">
-                        <AccordionTrigger className="p-6 text-left hover:no-underline">
-                          <div className="flex justify-between w-full items-center">
-                            <div className="space-y-1">
-                              <h3 className="font-bold text-lg text-primary">{sop.title}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {sop.department} &bull; Submitted by {sop.responsiblePerson ?? sop.submittedBy ?? "—"}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
-                              <span className="text-sm text-muted-foreground">
-                                {(() => {
-                                  const dt = new Date(sop.createdAt);
-                                  return isNaN(dt.getTime()) ? "-" : format(dt, "MMM d, yyyy");
-                                })()}
-                              </span>
-                            </div>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="px-6 pb-6">
-                          <Separator className="mb-4" />
-                          <div className="space-y-6">
-                            <div>
-                              <h4 className="font-semibold mb-2">Description</h4>
-                              <p className="text-muted-foreground">{sop.description}</p>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold mb-2">SOP Timeline & Steps</h4>
-                              <SopTimeline steps={sop.steps ?? []} />
-                            </div>
-                            <Separator />
-                            <div className="space-y-4">
-                              <h4 className="font-semibold">Manager Action</h4>
-                              <Textarea placeholder="Add comments for the creator (optional)..." />
-                              <div className="flex gap-4">
-                                <Button onClick={() => handleApproval(sop.sopId ?? sop.id, "Approved")} className="gap-2 bg-green-600 hover:bg-green-700">
-                                  <Check className="w-4 h-4" /> Approve
-                                </Button>
-                                <Button onClick={() => handleApproval(sop.sopId ?? sop.id, "Draft")} variant="destructive" className="gap-2">
-                                  <X className="w-4 h-4" /> Reject
-                                </Button>
+                <CardTitle>Manager Review</CardTitle>
+                <CardDescription>Review, approve, or reject SOPs that are pending action.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {showSpinner ? (
+                  <div className="space-y-3 animate-pulse">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="h-20 bg-muted/60 rounded" />
+                    ))}
+                  </div>
+                ) : (
+                  <Accordion type="multiple" className="w-full space-y-4">
+                    {reviewSops.map((sop) => (
+                      <AccordionItem value={sop.id ?? sop.sopId} key={sop.id ?? sop.sopId} className="border-b-0">
+                        <Card className="shadow-md">
+                          <AccordionTrigger className="p-6 text-left hover:no-underline">
+                            <div className="flex justify-between w-full items-center">
+                              <div className="space-y-1">
+                                <h3 className="font-bold text-lg text-primary">{sop.title}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {sop.department} &bull; Submitted by {sop.responsiblePerson ?? sop.submittedBy ?? "—"}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
+                                <span className="text-sm text-muted-foreground">
+                                  {(() => {
+                                    const dt = new Date(sop.createdAt);
+                                    return isNaN(dt.getTime()) ? "-" : format(dt, "MMM d, yyyy");
+                                  })()}
+                                </span>
                               </div>
                             </div>
-                          </div>
-                        </AccordionContent>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-6 pb-6">
+                            <Separator className="mb-4" />
+                            <div className="space-y-6">
+                              <div>
+                                <h4 className="font-semibold mb-2">Description</h4>
+                                <p className="text-muted-foreground">{sop.description}</p>
+                              </div>
+                              <div>
+                                <h4 className="font-semibold mb-2">SOP Timeline & Steps</h4>
+                                <SopTimeline steps={sop.steps ?? []} />
+                              </div>
+                              <Separator />
+                              <div className="space-y-4">
+                                <h4 className="font-semibold">Manager Action</h4>
+                                <Textarea placeholder="Add comments for the creator (optional)..." />
+                                <div className="flex gap-4">
+                                  <Button onClick={() => handleApproval(sop.sopId ?? sop.id, "Approved")} className="gap-2 bg-green-600 hover:bg-green-700">
+                                    <Check className="w-4 h-4" /> Approve
+                                  </Button>
+                                  <Button onClick={() => handleApproval(sop.sopId ?? sop.id, "Draft")} variant="destructive" className="gap-2">
+                                    <X className="w-4 h-4" /> Reject
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </AccordionContent>
                       </Card>
                     </AccordionItem>
                   ))}
@@ -510,8 +524,9 @@ function SopsPageContent() {
                 <p className="text-center text-muted-foreground py-12">There are no SOPs awaiting review.</p>
               )}
             </CardContent>
-          </Card>
-        </TabsContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* Templates */}
         <TabsContent value="templates">

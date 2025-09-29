@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import MainLayout from "@/components/MainLayout";
+import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { UserCog, Plus, X } from "lucide-react";
 
 /** Unions aligned to your Zod schema */
@@ -73,6 +75,10 @@ export default function AdminPage() {
 
   const [error, setError] = useState<string>("");
 
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const isRegTechTeam = user?.systemRole === "RegTechTeam";
+
   // Load users from API
   async function loadUsers() {
     setLoading(true);
@@ -88,7 +94,16 @@ export default function AdminPage() {
       setLoading(false);
     }
   }
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => {
+    if (!isRegTechTeam) return;
+    loadUsers();
+  }, [isRegTechTeam]);
+
+  useEffect(() => {
+    if (!isLoading && !isRegTechTeam) {
+      router.replace("/");
+    }
+  }, [isLoading, isRegTechTeam, router]);
 
   const resetForm = () => {
     setForm({
@@ -211,6 +226,24 @@ export default function AdminPage() {
     }
   };
   
+
+  if (!isRegTechTeam) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[60vh] items-center justify-center p-6">
+          <Card className="max-w-md text-center">
+            <CardHeader>
+              <CardTitle>Access restricted</CardTitle>
+              <CardDescription>You need RegTechTeam permissions to view the admin panel.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button onClick={() => router.replace("/")}>Go to Overview</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
