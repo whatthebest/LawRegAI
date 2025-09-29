@@ -115,7 +115,7 @@ export const mockSops: SOP[] = [
 ];
 
 // ----- Filter options -----
-export const sopDepartments: SOPDepartment[] = ['HR', 'Engineering', 'Operations', 'Marketing', 'Customer Support', 'IT'];
+export const sopDepartments: SOPDepartment[] = ['HR', 'Engineering', 'Operations', 'Marketing', 'Customer Support', 'IT', 'Compliance'];
 export const sopStatuses: SOPStatus[] = ['Draft', 'In Review', 'Approved', 'Archived'];
 export const sopStepStatuses: SOPStepStatus[] = ['Pending', 'In Progress', 'Review', 'Approved', 'Rejected'];
 

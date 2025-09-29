@@ -46,7 +46,7 @@ const sopFormSchema = z.object({
   sopId: z.string(),
   title: z.string().min(1, "SOP title must be at least 5 characters."),
   description: z.string().min(1, "Description must be at least 20 characters."),
-  department: z.enum(["Operations", "Engineering", "HR", "Marketing"]),
+  department: z.enum(["Operations", "Engineering", "HR", "Marketing","Compliance"]),
   cluster: z.string().optional(),
   group: z.string().optional(),
   section: z.string().optional(),

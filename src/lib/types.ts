@@ -11,7 +11,7 @@ export interface User {
 // ----- SOP Definitions -----
 
 export type SOPStatus = 'Draft' | 'In Review' | 'Approved' | 'Archived';
-export type SOPDepartment = 'Operations' | 'Engineering' | 'HR' | 'Marketing' | 'Customer Support' | 'IT';
+export type SOPDepartment = 'Operations' | 'Engineering' | 'HR' | 'Marketing' | 'Customer Support' | 'IT' | 'Compliance';
 
 export interface SOP {
   id: string;
