@@ -320,12 +320,12 @@ export default function AdminPage() {
 
       {/* Modal */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* backdrop */}
           <div className="absolute inset-0 bg-black/50" onClick={onClose} />
           {/* dialog */}
-          <div className="relative z-10 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
+          <div className="relative z-10 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl flex flex-col">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <h2 className="text-xl font-semibold">Add User</h2>
               <button
                 aria-label="Close"
@@ -336,111 +336,113 @@ export default function AdminPage() {
               </button>
             </div>
 
-            <form onSubmit={onSubmit} className="space-y-6">
-              {error && (
-                <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2 text-sm">
-                  {error}
-                </div>
-              )}
+            <div className="overflow-y-auto pr-4 -mr-4 flex-grow">
+              <form onSubmit={onSubmit} className="space-y-6">
+                {error && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2 text-sm">
+                    {error}
+                  </div>
+                )}
 
-              {/* Core fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Full Name</label>
-                  <Input value={form.fullname} onChange={(e) => setForm({ ...form, fullname: e.target.value })} required />
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Email</label>
-                  <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Password</label>
-                  <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Temporary password" required />
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Department</label>
-                  <select
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={form.department}
-                    onChange={(e) => setForm({ ...form, department: e.target.value as Department })}
-                  >
-                    <option value="Operations">Operations</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="HR">HR</option>
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">System Role</label>
-                  <select
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={form.systemRole}
-                    onChange={(e) => setForm({ ...form, systemRole: e.target.value as SystemRole })}
-                  >
-                    <option value="User">User</option>
-                    <option value="Manager">Manager</option>
-                    <option value="RegTechTeam">RegTechTeam</option>
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Workflow Role</label>
-                  <select
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={form.role}
-                    onChange={(e) => setForm({ ...form, role: e.target.value as WorkflowRole })}
-                  >
-                    <option value="Owner">Owner</option>
-                    <option value="Reviewer">Reviewer</option>
-                    <option value="Approver">Approver</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Additional Details (optional extras) */}
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-3">Additional Details (optional)</h3>
+                {/* Core fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Employee ID</label>
-                    <Input value={form.employeeId ?? ""} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} />
+                    <label className="text-sm font-medium">Full Name</label>
+                    <Input value={form.fullname} onChange={(e) => setForm({ ...form, fullname: e.target.value })} required />
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Contact Number</label>
-                    <Input type="tel" value={form.contactNumber ?? ""} onChange={(e) => setForm({ ...form, contactNumber: e.target.value })} placeholder="e.g., 0912345678" />
+                    <label className="text-sm font-medium">Email</label>
+                    <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Cluster</label>
-                    <Input value={form.cluster ?? ""} onChange={(e) => setForm({ ...form, cluster: e.target.value })} />
+                    <label className="text-sm font-medium">Password</label>
+                    <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Temporary password" required />
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Business Unit</label>
-                    <Input value={form.businessUnit ?? ""} onChange={(e) => setForm({ ...form, businessUnit: e.target.value })} />
+                    <label className="text-sm font-medium">Department</label>
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.department}
+                      onChange={(e) => setForm({ ...form, department: e.target.value as Department })}
+                    >
+                      <option value="Operations">Operations</option>
+                      <option value="Engineering">Engineering</option>
+                      <option value="HR">HR</option>
+                    </select>
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Team</label>
-                    <Input value={form.team ?? ""} onChange={(e) => setForm({ ...form, team: e.target.value })} />
+                    <label className="text-sm font-medium">System Role</label>
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.systemRole}
+                      onChange={(e) => setForm({ ...form, systemRole: e.target.value as SystemRole })}
+                    >
+                      <option value="User">User</option>
+                      <option value="Manager">Manager</option>
+                      <option value="RegTechTeam">RegTechTeam</option>
+                    </select>
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Manager Name</label>
-                    <Input value={form.managerName ?? ""} onChange={(e) => setForm({ ...form, managerName: e.target.value })} />
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium">Manager Email</label>
-                    <Input type="email" value={form.managerEmail ?? ""} onChange={(e) => setForm({ ...form, managerEmail: e.target.value })} placeholder="manager@company.com" />
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium">กลุ่ม (groupTh)</label>
-                    <Input value={form.groupTh ?? ""} onChange={(e) => setForm({ ...form, groupTh: e.target.value })} />
+                    <label className="text-sm font-medium">Workflow Role</label>
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.role}
+                      onChange={(e) => setForm({ ...form, role: e.target.value as WorkflowRole })}
+                    >
+                      <option value="Owner">Owner</option>
+                      <option value="Reviewer">Reviewer</option>
+                      <option value="Approver">Approver</option>
+                    </select>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save</Button>
-              </div>
-            </form>
+                {/* Additional Details (optional extras) */}
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">Additional Details (optional)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Employee ID</label>
+                      <Input value={form.employeeId ?? ""} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Contact Number</label>
+                      <Input type="tel" value={form.contactNumber ?? ""} onChange={(e) => setForm({ ...form, contactNumber: e.target.value })} placeholder="e.g., 0912345678" />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Cluster</label>
+                      <Input value={form.cluster ?? ""} onChange={(e) => setForm({ ...form, cluster: e.target.value })} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Business Unit</label>
+                      <Input value={form.businessUnit ?? ""} onChange={(e) => setForm({ ...form, businessUnit: e.target.value })} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Team</label>
+                      <Input value={form.team ?? ""} onChange={(e) => setForm({ ...form, team: e.target.value })} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Manager Name</label>
+                      <Input value={form.managerName ?? ""} onChange={(e) => setForm({ ...form, managerName: e.target.value })} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Manager Email</label>
+                      <Input type="email" value={form.managerEmail ?? ""} onChange={(e) => setForm({ ...form, managerEmail: e.target.value })} placeholder="manager@company.com" />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">กลุ่ม (groupTh)</label>
+                      <Input value={form.groupTh ?? ""} onChange={(e) => setForm({ ...form, groupTh: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 flex-shrink-0">
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Save</Button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
