@@ -320,11 +320,11 @@ export default function AdminPage() {
 
       {/* Modal */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-10 sm:items-center sm:p-6">
           {/* backdrop */}
           <div className="absolute inset-0 bg-black/50" onClick={onClose} />
           {/* dialog */}
-          <div className="relative z-10 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl flex flex-col">
+          <div className="relative z-10 w-full max-w-2xl rounded-2xl bg-white p-4 shadow-xl flex flex-col max-h-[calc(100vh-3rem)] sm:max-h-[calc(100vh-4rem)] sm:p-6">
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <h2 className="text-xl font-semibold">Add User</h2>
               <button
@@ -336,7 +336,7 @@ export default function AdminPage() {
               </button>
             </div>
 
-            <div className="overflow-y-auto pr-4 -mr-4 flex-grow">
+            <div className="flex-1 overflow-y-auto pr-4 -mr-4 max-h-full sm:pr-2 sm:-mr-2">
               <form onSubmit={onSubmit} className="space-y-6">
                 {error && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2 text-sm">
@@ -449,3 +449,4 @@ export default function AdminPage() {
     </MainLayout>
   );
 }
+

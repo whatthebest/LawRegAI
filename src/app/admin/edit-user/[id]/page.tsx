@@ -30,7 +30,7 @@ import {
 
 
 /* ---- typed options (must match backend/Zod) ---- */
-const departments = ["Operations", "Engineering", "HR"] as const;
+const departments = ["Operations", "Engineering", "HR", "Compliance"] as const;
 type Department = (typeof departments)[number];
 
 const systemRoles = ["RegTechTeam", "Manager", "User"] as const;   // RBAC
