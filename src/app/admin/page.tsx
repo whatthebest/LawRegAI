@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { UserCog, Plus, X } from "lucide-react";
 
 /** Unions aligned to your Zod schema */
-type Department   = "Operations" | "Engineering" | "HR";
+type Department   = "Operations" | "Engineering" | "HR" | "Compliance"; // etc
 type SystemRole   = "RegTechTeam" | "Manager" | "User";    // RBAC
 type WorkflowRole = "Owner" | "Reviewer" | "Approver";     // SOP workflow
 
@@ -368,6 +368,7 @@ export default function AdminPage() {
                       <option value="Operations">Operations</option>
                       <option value="Engineering">Engineering</option>
                       <option value="HR">HR</option>
+                      <option value="Compliance">Compliance</option>
                     </select>
                   </div>
                   <div className="grid gap-2">
