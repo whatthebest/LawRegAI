@@ -29,6 +29,10 @@ export interface SOP {
 
   // Optional submitter for Manager Review tab fallback
   submittedBy?: string;                // ← ADD THIS
+  submittedByEmail?: string;
+  submitterUid?: string;
+  managerEmail?: string;
+  managerName?: string;
 
   version: string;
   sla: number;                         // days

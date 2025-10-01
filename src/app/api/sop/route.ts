@@ -72,6 +72,69 @@ function sanitize(v: any): any {
   return v;
 }
 
+function normalizeEmail(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.normalize("NFC").trim().toLowerCase();
+  return normalized.length ? normalized : undefined;
+}
+
+function safeString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.normalize("NFC").trim();
+  return trimmed.length ? trimmed : undefined;
+}
+
+function firstFromSnapshot(snap: DataSnapshot | null): Record<string, any> | null {
+  if (!snap || !snap.exists()) return null;
+  const val = snap.val() as Record<string, any> | null;
+  if (!val) return null;
+  const key = Object.keys(val)[0];
+  if (!key) return null;
+  return val[key] as Record<string, any>;
+}
+
+async function findSubmitterProfile(
+  db: ReturnType<typeof getDatabase>,
+  opts: { uid?: string; email?: string | null | undefined }
+): Promise<Record<string, any> | null> {
+  const usersRef = db.ref("users");
+  const uid = safeString(opts.uid);
+  const emailNormalized = normalizeEmail(opts.email);
+
+  if (uid) {
+    const direct = await db.ref(`users/${uid}`).get();
+    if (direct.exists()) return (direct.val() as Record<string, any>) ?? null;
+  }
+
+  if (uid) {
+    const byUid = await usersRef.orderByChild("uid").equalTo(uid).limitToFirst(1).get();
+    const found = firstFromSnapshot(byUid);
+    if (found) return found;
+  }
+
+  if (emailNormalized) {
+    const byEmail = await usersRef.orderByChild("email").equalTo(emailNormalized).limitToFirst(1).get();
+    const found = firstFromSnapshot(byEmail);
+    if (found) return found;
+  }
+
+  if (emailNormalized) {
+    const snap = await usersRef.get();
+    if (snap.exists()) {
+      const val = snap.val() as Record<string, any>;
+      for (const entry of Object.values(val)) {
+        const row = entry as Record<string, any>;
+        const candidates = [row?.email, row?.Email, row?.workEmail, row?.corporateEmail];
+        if (candidates.some((addr) => normalizeEmail(addr) === emailNormalized)) {
+          return row;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 /* ---------- GET: preview next = max(counter, highestInDB) + 1 ---------- */
 export async function GET() {
   const [highest, counter] = await Promise.all([getHighestIndex(), getCounter()]);
@@ -135,12 +198,28 @@ export async function POST(req: Request) {
     const sopId = `sop-${String(newIndex).padStart(3, "0")}`;
     const newRef = db.ref("sops").push();
     const me = await getSessionUser();
+    const submitterUid = safeString(me?.uid);
+    const submitterEmailRaw = safeString(me?.email);
+    const submitterEmail = normalizeEmail(me?.email);
+    const submitterProfile = me
+      ? await findSubmitterProfile(db, { uid: submitterUid, email: submitterEmail })
+      : null;
+
+    const submitterName = safeString(submitterProfile?.fullname) ?? safeString(payload?.responsiblePerson) ?? submitterEmailRaw;
+    const managerEmail = normalizeEmail(submitterProfile?.managerEmail ?? submitterProfile?.manager_email);
+    const managerName = safeString(submitterProfile?.managerName ?? submitterProfile?.manager_name);
+
     await newRef.set({
       ...payload,
       sopId,
       sopIndex: newIndex,
       status: "In Review",
       createdAt: Date.now(),
+      ...(submitterName ? { submittedBy: submitterName } : {}),
+      ...(submitterEmail ? { submittedByEmail: submitterEmail } : {}),
+      ...(submitterUid ? { submitterUid } : {}),
+      ...(managerEmail ? { managerEmail } : {}),
+      ...(managerName ? { managerName } : {}),
     });
 
     return NextResponse.json(

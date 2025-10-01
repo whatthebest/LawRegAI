@@ -47,6 +47,12 @@ const getStatusVariant = (status: SOPStatus) => {
   }
 };
 
+const normalizeEmail = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.normalize("NFC").trim().toLowerCase();
+  return trimmed.length ? trimmed : undefined;
+};
+
 /* ---- UI helpers for smooth loading ---- */
 function useDelayedSpinner(active: boolean, delay = 300) {
   const [show, setShow] = useState(false);
@@ -93,6 +99,7 @@ function SopsPageContent() {
   const [templates, setTemplates] = useState<TemplateRecord[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
+  const [userDirectory, setUserDirectory] = useState<Record<string, { managerEmail?: string; managerName?: string }>>({});
 
   const { user } = useAuth();
   const isManager = user?.systemRole === "Manager";
@@ -204,12 +211,59 @@ function SopsPageContent() {
     return () => { alive = false; };
   }, [activeTab, templates.length]);
 
+  useEffect(() => {
+    if (!isManager) return;
+
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/users', { cache: 'no-store' });
+        if (!alive) return;
+        if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
+        const data = await res.json();
+        if (!Array.isArray(data)) return;
+        const map: Record<string, { managerEmail?: string; managerName?: string }> = {};
+        for (const entry of data) {
+          const emailKey = normalizeEmail(entry?.email ?? entry?.Email);
+          if (!emailKey) continue;
+          const managerEmail = normalizeEmail(entry?.managerEmail ?? entry?.manager_email);
+          const managerName = typeof entry?.managerName === 'string' ? entry.managerName : undefined;
+          map[emailKey] = { managerEmail, managerName };
+        }
+        setUserDirectory(map);
+      } catch (error) {
+        console.warn('Failed to load user directory for manager routing', error);
+      }
+    })();
+
+    return () => { alive = false; };
+  }, [isManager]);
+
 
   const handleTabChange = (next: string) => {
     setActiveTab(allowedTabs.includes(next) ? next : "list");
   };
 
   const displayTab = allowedTabs.includes(activeTab) ? activeTab : "list";
+
+  const managerEmailKey = normalizeEmail(user?.email);
+
+  const managerReviewSops = useMemo(() => {
+    if (!isManager || !managerEmailKey) return [];
+
+    return reviewSops.filter((sop) => {
+      const assigned = normalizeEmail(sop.managerEmail);
+      if (assigned) return assigned === managerEmailKey;
+
+      const submitterEmail = normalizeEmail(sop.submittedByEmail);
+      if (submitterEmail) {
+        const mapped = userDirectory[submitterEmail]?.managerEmail;
+        if (mapped) return mapped === managerEmailKey;
+      }
+
+      return false;
+    });
+  }, [isManager, managerEmailKey, reviewSops, userDirectory]);
 
   const filteredSops = useMemo(() => {
     return sops
@@ -466,7 +520,7 @@ function SopsPageContent() {
                   </div>
                 ) : (
                   <Accordion type="multiple" className="w-full space-y-4">
-                    {reviewSops.map((sop) => (
+                    {managerReviewSops.map((sop) => (
                       <AccordionItem value={sop.id ?? sop.sopId} key={sop.id ?? sop.sopId} className="border-b-0">
                         <Card className="shadow-md">
                           <AccordionTrigger className="p-6 text-left hover:no-underline">
@@ -520,7 +574,7 @@ function SopsPageContent() {
                 </Accordion>
               )}
 
-              {!showSpinner && reviewSops.length === 0 && (
+              {!showSpinner && managerReviewSops.length === 0 && (
                 <p className="text-center text-muted-foreground py-12">There are no SOPs awaiting review.</p>
               )}
             </CardContent>

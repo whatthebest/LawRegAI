@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const departments = ["Operations", "Engineering", "HR"] as const;
+export const departments = ["Operations", "Engineering", "HR" , "Compliance"] as const;
 export const roles       = ["Owner", "Reviewer", "Approver"] as const;           // workflow role
 export const systemRoles = ["RegTechTeam", "Manager", "User"] as const;           // app/RBAC role
 

@@ -16,6 +16,12 @@ const fetcher = (url: string) => fetch(url).then((r) => {
   return r.json();
 });
 
+const normalizeEmail = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.normalize("NFC").trim().toLowerCase();
+  return trimmed.length ? trimmed : undefined;
+};
+
 type DbTask = {
   taskId: string;
   stepOrder?: number;
@@ -35,13 +41,29 @@ type DbTask = {
 
 export default function HomePage() {
   const { user } = useAuth();
+  const isManager = user?.systemRole === "Manager";
 
   const { data: projectsData, error: projectsError, isLoading: projectsLoading } = useSWR("/api/projects", fetcher);
   const { data: sopsData, error: sopsError, isLoading: sopsLoading } = useSWR("/api/sops", fetcher);
+  const { data: usersData } = useSWR(isManager ? "/api/users" : null, fetcher);
 
   // Normalize arrays to avoid undefined during initial render
   const projects = Array.isArray(projectsData) ? projectsData : [];
   const sops = Array.isArray(sopsData) ? sopsData : [];
+
+  const managerEmailKey = normalizeEmail(user?.email);
+  const userDirectory = useMemo(() => {
+    if (!Array.isArray(usersData)) return {} as Record<string, { managerEmail?: string; managerName?: string }>;
+    const map: Record<string, { managerEmail?: string; managerName?: string }> = {};
+    for (const entry of usersData as any[]) {
+      const emailKey = normalizeEmail((entry as any)?.email ?? (entry as any)?.Email);
+      if (!emailKey) continue;
+      const managerEmail = normalizeEmail((entry as any)?.managerEmail ?? (entry as any)?.manager_email);
+      const managerName = typeof (entry as any)?.managerName === 'string' ? (entry as any).managerName : undefined;
+      map[emailKey] = { managerEmail, managerName };
+    }
+    return map;
+  }, [usersData]);
 
   // Build My Action Items from DB tasks of Active projects
   const activeProjects = useMemo(() => (
@@ -72,7 +94,21 @@ export default function HomePage() {
   );
 
   const { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview } = useMemo(() => {
-    const sopsInReview: SOP[] = (sops || []).filter((s: SOP) => s.status === "In Review");
+    const allSopsInReview: SOP[] = (sops || []).filter((s: SOP) => s.status === "In Review");
+    const sopsInReview = isManager && managerEmailKey
+      ? allSopsInReview.filter((sop) => {
+          const assigned = normalizeEmail(sop.managerEmail);
+          if (assigned) return assigned === managerEmailKey;
+
+          const submitterEmail = normalizeEmail(sop.submittedByEmail);
+          if (submitterEmail) {
+            const mapped = userDirectory[submitterEmail]?.managerEmail;
+            if (mapped) return mapped === managerEmailKey;
+          }
+
+          return false;
+        })
+      : allSopsInReview;
     const projectsInProgress = (projects || []).filter((p: any) => (
       p.status === "Active" || p.status === "In Progress"
     ));
@@ -82,7 +118,7 @@ export default function HomePage() {
     const toApproveTasks = mine.filter((t) => t.approver === user?.email && t.status === "ReadyToApprove");
 
     return { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview };
-  }, [user, projects, sops, flatTasks]);
+  }, [user, projects, sops, flatTasks, isManager, managerEmailKey, userDirectory]);
 
   if (projectsLoading || sopsLoading) {
     return (

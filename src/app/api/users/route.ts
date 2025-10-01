@@ -10,7 +10,7 @@ export const revalidate = 0;
 const USERS = "users";
 
 /* ===== enums must match your UI ===== */
-const departments   = ["Operations", "Engineering", "HR"] as const;
+const departments   = ["Operations", "Engineering", "HR" ,"Compliance"] as const;
 const roles         = ["Owner", "Reviewer", "Approver"] as const;          // workflow role
 const systemRoles   = ["RegTechTeam", "Manager", "User"] as const;         // RBAC
 

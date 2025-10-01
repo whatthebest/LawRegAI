@@ -14,6 +14,17 @@ const toIso = (v: any): string | undefined => {
   return new Date(v).toISOString();
 };
 
+const safeString = (value: any): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.normalize('NFC').trim();
+  return trimmed.length ? trimmed : undefined;
+};
+
+const normalizeEmail = (value: any): string | undefined => {
+  const trimmed = safeString(value);
+  return trimmed ? trimmed.toLowerCase() : undefined;
+};
+
 // Helper to add a timeout to fetch requests.
 async function fetchWithTimeout(
   input: RequestInfo | URL,
@@ -44,14 +55,47 @@ export async function fetchSopsByStatus(status: SopStatus): Promise<SOP[]> {
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
   const list = await res.json();
 
-  return (Array.isArray(list) ? list : []).map((sop: any): SOP => ({
-    ...sop,
-    id: sop.id ?? sop.sopId ?? sop.key,
-    sopId: sop.sopId ?? sop.id ?? sop.key,
-    createdAt: toIso(sop.createdAt)!,         // SOP.createdAt is string in your types
-    updatedAt: toIso(sop.updatedAt)!,         // SOP.updatedAt is string (required in your types)
-    submittedBy: sop.submittedBy ?? sop.createdBy ?? sop.owner, // keep if backend provides
-  }));
+  return (Array.isArray(list) ? list : []).map((sop: any): SOP => {
+    const submittedByRaw = [
+      sop.submittedBy,
+      sop.createdBy,
+      sop.owner,
+      sop.responsiblePerson,
+    ].find((value) => typeof value === 'string' && value.trim().length > 0);
+    const submittedBy = safeString(submittedByRaw);
+
+    const submittedByEmail =
+      normalizeEmail(sop.submittedByEmail) ||
+      normalizeEmail(sop.submitterEmail) ||
+      normalizeEmail(sop.ownerEmail);
+
+    const submitterUid =
+      safeString(sop.submitterUid) ||
+      safeString(sop.submitterUID) ||
+      safeString(sop.creatorUid) ||
+      safeString(sop.uid);
+
+    const managerEmail =
+      normalizeEmail(sop.managerEmail) ||
+      normalizeEmail(sop.manager_email);
+
+    const managerName =
+      safeString(sop.managerName) ||
+      safeString(sop.manager_name);
+
+    return {
+      ...sop,
+      id: sop.id ?? sop.sopId ?? sop.key,
+      sopId: sop.sopId ?? sop.id ?? sop.key,
+      createdAt: toIso(sop.createdAt)!,         // SOP.createdAt is string in your types
+      updatedAt: toIso(sop.updatedAt)!,         // SOP.updatedAt is string (required in your types)
+      ...(submittedBy ? { submittedBy } : {}),
+      ...(submittedByEmail ? { submittedByEmail } : {}),
+      ...(submitterUid ? { submitterUid } : {}),
+      ...(managerEmail ? { managerEmail } : {}),
+      ...(managerName ? { managerName } : {}),
+    };
+  });
 }
 
 export async function patchSopStatus(
@@ -66,13 +110,44 @@ export async function patchSopStatus(
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
   const updated = await res.json();
 
+  const submittedByRaw = [
+    updated.submittedBy,
+    updated.createdBy,
+    updated.owner,
+    updated.responsiblePerson,
+  ].find((value) => typeof value === 'string' && value.trim().length > 0);
+  const submittedBy = safeString(submittedByRaw);
+
+  const submittedByEmail =
+    normalizeEmail(updated.submittedByEmail) ||
+    normalizeEmail(updated.submitterEmail) ||
+    normalizeEmail(updated.ownerEmail);
+
+  const submitterUid =
+    safeString(updated.submitterUid) ||
+    safeString(updated.submitterUID) ||
+    safeString(updated.creatorUid) ||
+    safeString(updated.uid);
+
+  const managerEmail =
+    normalizeEmail(updated.managerEmail) ||
+    normalizeEmail(updated.manager_email);
+
+  const managerName =
+    safeString(updated.managerName) ||
+    safeString(updated.manager_name);
+
   return {
     ...updated,
     id: updated.id ?? updated.sopId ?? updated.key,
     sopId: updated.sopId ?? updated.id ?? updated.key,
     createdAt: toIso(updated.createdAt)!,
     updatedAt: toIso(updated.updatedAt) ?? new Date().toISOString(),
-    submittedBy: updated.submittedBy ?? updated.createdBy ?? updated.owner,
+    ...(submittedBy ? { submittedBy } : {}),
+    ...(submittedByEmail ? { submittedByEmail } : {}),
+    ...(submitterUid ? { submitterUid } : {}),
+    ...(managerEmail ? { managerEmail } : {}),
+    ...(managerName ? { managerName } : {}),
   };
 }
 
