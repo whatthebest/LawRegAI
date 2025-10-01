@@ -21,16 +21,34 @@ async function getNextSopId(): Promise<string> {
     const db = getDatabase(getFirebaseAdminApp());
 
     // read highest sopIndex
-    const highestSnap = await db.ref("sops").orderByChild("sopIndex").limitToLast(1).get();
     let highest = 0;
-    if (highestSnap.exists()) {
-      highestSnap.forEach((ch) => {
-        const idx = ch.child("sopIndex").val();
-        if (typeof idx === "number" && idx > highest) highest = idx;
-      });
+
+    try {
+      const highestSnap = await db.ref("sops").orderByChild("sopIndex").limitToLast(1).get();
+      if (highestSnap.exists()) {
+        highestSnap.forEach((ch) => {
+          const idx = ch.child("sopIndex").val();
+          if (typeof idx === "number" && idx > highest) highest = idx;
+        });
+      }
+    } catch (err) {
+      const needsIndex = err instanceof Error && err.message.includes("Index not defined");
+      if (!needsIndex) throw err;
+      const fallbackSnap = await db.ref("sops").get();
+      if (fallbackSnap.exists()) {
+        const val = fallbackSnap.val() as Record<string, any> | null;
+        if (val) {
+          const entries = Object.values(val) as Array<Record<string, any>>;
+          for (const entry of entries) {
+            const raw = entry?.sopIndex ?? entry?.sop_index ?? entry?.index;
+            const idx = typeof raw === "number" ? raw : Number(raw);
+            if (Number.isFinite(idx) && idx > highest) highest = idx;
+          }
+        }
+      }
     }
 
-    // read counter (in case it’s ahead)
+    // read counter (in case it's ahead)
     const counterSnap = await db.ref("meta/sopCounter").get();
     const counter = typeof counterSnap.val() === "number" ? counterSnap.val() : 0;
 
