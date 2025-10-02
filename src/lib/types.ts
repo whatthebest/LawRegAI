@@ -15,6 +15,19 @@ export interface User {
 // ----- SOP Definitions -----
 
 export type SOPStatus = 'Draft' | 'In Review' | 'Approved' | 'Archived';
+
+export type SopStatusAction = 'submitted' | 'approved' | 'rejected' | 'returned' | 'updated';
+
+export interface SopStatusEvent {
+  status: SOPStatus;
+  decidedAt: string;
+  decidedBy?: string;
+  decidedByEmail?: string;
+  comment?: string;
+  action?: SopStatusAction;
+  previousStatus?: SOPStatus;
+}
+
 export type SOPDepartment = 'Operations' | 'Engineering' | 'HR' | 'Marketing' | 'Customer Support' | 'IT' | 'Compliance';
 
 export interface SOP {
@@ -37,8 +50,10 @@ export interface SOP {
   submitterUid?: string;
   managerEmail?: string;
   managerName?: string;
-
+  managerComment?: string | null;
+  statusHistory?: SopStatusEvent[];
   version: string;
+
   sla: number;                         // days
 
   createdAt: string;                   // ISO

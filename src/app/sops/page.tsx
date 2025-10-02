@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Search, FilePlus2, Check, X, List, UserCheck, Workflow, FileText, PlusCircle } from "lucide-react";
-import type { SOP, SOPDepartment, SOPStatus } from "@/lib/types";
+import { ArrowRight, Search, FilePlus2, Check, X, List, UserCheck, Workflow, FileText, PlusCircle, History } from "lucide-react";
+import type { SOP, SOPDepartment, SOPStatus, SopStatusEvent } from "@/lib/types";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -94,21 +94,26 @@ function SopsPageContent() {
 
   const [sops, setSops] = useState<SOP[]>([]);
   const [reviewSops, setReviewSops] = useState<SOP[]>([]);
+  const [draftSops, setDraftSops] = useState<SOP[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<TemplateRecord[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
   const [userDirectory, setUserDirectory] = useState<Record<string, { managerEmail?: string; managerName?: string }>>({});
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [historyDialogSop, setHistoryDialogSop] = useState<SOP | null>(null);
 
   const { user } = useAuth();
   const isManager = user?.systemRole === "Manager";
-  const allowedTabs = useMemo(() => (isManager ? ["list", "manager", "templates"] : ["list", "templates"]), [isManager]);
-
-  // show spinner only if load takes >300ms
+  const allowedTabs = useMemo(() => {
+    const base = ["list"];
+    if (isManager) base.push("manager");
+    base.push("history", "templates");
+    return base;
+  }, [isManager]);
   const showSpinner = useDelayedSpinner(loading, 300);
   const templatesSpinner = useDelayedSpinner(templatesLoading, 300);
-
   useEffect(() => {
     if (allowedTabs.includes(queryTab)) setActiveTab(queryTab);
     else setActiveTab("list");
@@ -132,6 +137,7 @@ function SopsPageContent() {
         const results = await Promise.allSettled([
           fetchSopsByStatus("Approved"),
           fetchSopsByStatus("In Review"),
+          fetchSopsByStatus("Draft"),
           fetchTemplates(), // Fetch templates alongside SOPs
         ]);
 
@@ -140,16 +146,19 @@ function SopsPageContent() {
         const ok: SOP[] = [];
         const errs: string[] = [];
 
-        // SOPs
-        [results[0], results[1]].forEach((r, idx) => {
-          const tag = idx === 0 ? "Approved" : "In Review";
-          if (r.status === "fulfilled") ok.push(...(r.value as SOP[]));
-          else errs.push(`${tag}: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`);
+        const statusResults: Array<[PromiseSettledResult<SOP[]>, SOPStatus]> = [
+          [results[0], "Approved"],
+          [results[1], "In Review"],
+          [results[2], "Draft"],
+        ];
+
+        statusResults.forEach(([result, tag]) => {
+          if (result.status === "fulfilled") ok.push(...(result.value as SOP[]));
+          else errs.push(`${tag}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
         });
-        
-        // Templates
-        const templateResult = results[2];
-        if (templateResult.status === 'fulfilled') {
+
+        const templateResult = results[3];
+        if (templateResult.status === "fulfilled") {
           const sortedTemplates = [...(templateResult.value as TemplateRecord[])].sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
@@ -158,10 +167,11 @@ function SopsPageContent() {
           errs.push(`Templates: ${templateResult.reason instanceof Error ? templateResult.reason.message : String(templateResult.reason)}`);
         }
 
-
         ok.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setSops(ok.filter((s) => s.status === "Approved"));
         setReviewSops(ok.filter((s) => s.status === "In Review"));
+        setDraftSops(ok.filter((s) => s.status === "Draft"));
+        setReviewNotes({});
 
         if (errs.length) setError(`Some sections failed — ${errs.join(" | ")}`);
       } catch (e) {
@@ -246,7 +256,8 @@ function SopsPageContent() {
 
   const displayTab = allowedTabs.includes(activeTab) ? activeTab : "list";
 
-  const managerEmailKey = normalizeEmail(user?.email);
+  const userEmailKey = normalizeEmail(user?.email);
+  const managerEmailKey = userEmailKey;
 
   const managerReviewSops = useMemo(() => {
     if (!isManager || !managerEmailKey) return [];
@@ -279,6 +290,8 @@ function SopsPageContent() {
       toast({ title: "Not found", description: "SOP not in review list." });
       return;
     }
+
+    const note = (reviewNotes[sopId] ?? "").trim();
     const actionPast = newStatus === "Approved" ? "approved" : "rejected";
 
     // optimistic move
@@ -288,7 +301,8 @@ function SopsPageContent() {
     }
 
     try {
-      const updated = await patchSopStatus(sopId, newStatus);
+      const updated = await patchSopStatus(sopId, newStatus, note || undefined);
+
       setSops((prev) => {
         if (newStatus === "Approved") {
           const idx = prev.findIndex((x) => (x.sopId ?? x.id) === (updated.sopId ?? updated.id));
@@ -301,14 +315,28 @@ function SopsPageContent() {
         }
         return prev.filter((x) => (x.sopId ?? x.id) !== (updated.sopId ?? updated.id));
       });
+
       if (newStatus === "Draft") {
-        setReviewSops((prev) => prev.filter((x) => (x.sopId ?? x.id) !== (updated.sopId ?? updated.id)));
+        setDraftSops((prev) => {
+          const filtered = prev.filter((x) => (x.sopId ?? x.id) !== (updated.sopId ?? updated.id));
+          return [updated as SOP, ...filtered];
+        });
+      } else {
+        setDraftSops((prev) => prev.filter((x) => (x.sopId ?? x.id) !== (updated.sopId ?? updated.id)));
       }
+
+      setReviewNotes((prev) => {
+        const next = { ...prev };
+        delete next[sopId];
+        return next;
+      });
+
       toast({ title: `SOP ${actionPast}`, description: `The SOP was successfully ${actionPast}.` });
     } catch (err: any) {
-      // rollback
       setReviewSops((prev) => [current, ...prev]);
-      if (newStatus === "Approved") setSops((prev) => prev.filter((x) => (x.sopId ?? x.id) !== sopId));
+      if (newStatus === "Approved") {
+        setSops((prev) => prev.filter((x) => (x.sopId ?? x.id) !== sopId));
+      }
       toast({
         title: "Update failed",
         description: err?.message?.toLowerCase().includes("timed out") ? "Unable to update SOP. Please try again." : err?.message || "Could not update SOP status.",
@@ -317,6 +345,117 @@ function SopsPageContent() {
       console.error("Error updating SOP status", err);
     }
   };
+
+  const normalizeIso = (value?: string) => {
+    if (!value) return undefined;
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return undefined;
+    return dt.toISOString();
+  };
+
+  const getSubmitterEmail = (sop: SOP): string | undefined => {
+    const candidates = [
+      sop.submittedByEmail,
+      (sop as any)?.submitterEmail,
+      sop.ownerEmail,
+      sop.owner,
+      sop.responsiblePerson,
+    ];
+    for (const candidate of candidates) {
+      const normalized = normalizeEmail(candidate);
+      if (normalized) return normalized;
+    }
+    return undefined;
+  };
+
+  const buildStatusHistory = (sop: SOP): SopStatusEvent[] => {
+    const raw = Array.isArray(sop.statusHistory) ? sop.statusHistory : [];
+    const normalized = raw
+      .map((event) => {
+        if (!event?.status || !event?.decidedAt) return undefined;
+        const decidedAtIso = normalizeIso(event.decidedAt);
+        if (!decidedAtIso) return undefined;
+        return {
+          status: event.status,
+          decidedAt: decidedAtIso,
+          decidedBy: event.decidedBy,
+          decidedByEmail: event.decidedByEmail,
+          comment: event.comment,
+          action: event.action,
+          previousStatus: event.previousStatus,
+        } as SopStatusEvent;
+      })
+      .filter((event): event is SopStatusEvent => Boolean(event));
+
+    if (!normalized.some((evt) => evt.action === "submitted")) {
+      normalized.unshift({
+        status: sop.status,
+        decidedAt: normalizeIso(sop.createdAt) ?? new Date(sop.createdAt).toISOString(),
+        decidedBy: sop.submittedBy ?? sop.responsiblePerson,
+        decidedByEmail: sop.submittedByEmail,
+        action: "submitted",
+      });
+    }
+
+    return normalized.sort((a, b) => new Date(a.decidedAt).getTime() - new Date(b.decidedAt).getTime());
+  };
+
+  const getActionLabel = (event: SopStatusEvent | undefined, status?: SOPStatus) => {
+    if (!event) {
+      if (status === "In Review") return "Awaiting review";
+      return status ?? "Status";
+    }
+    switch (event.action) {
+      case "approved":
+        return "Approved";
+      case "rejected":
+      case "returned":
+        return "Rejected";
+      case "submitted":
+        return "Submitted";
+      case "updated":
+        return "Updated";
+      default:
+        return event.status ?? status ?? "Status change";
+    }
+  };
+
+  const formatDateTime = (value?: string) => {
+    if (!value) return "-";
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return "-";
+    return format(dt, "MMM d, yyyy p");
+  };
+
+  const mySubmissionHistory = useMemo(() => {
+    if (!userEmailKey) return [] as SOP[];
+    const aggregate = new Map<string, SOP>();
+    const all = [...sops, ...reviewSops, ...draftSops];
+
+    all.forEach((sop) => {
+      const key = String(sop.sopId ?? sop.id ?? "");
+      if (!key) return;
+      const submitter = getSubmitterEmail(sop);
+      if (submitter !== userEmailKey) return;
+
+      const existing = aggregate.get(key);
+      const currentTs = new Date(sop.updatedAt ?? sop.createdAt ?? 0).getTime();
+      if (!existing) {
+        aggregate.set(key, sop);
+        return;
+      }
+      const existingTs = new Date(existing.updatedAt ?? existing.createdAt ?? 0).getTime();
+      if (currentTs > existingTs) {
+        aggregate.set(key, sop);
+      }
+    });
+
+    return Array.from(aggregate.values()).sort((a, b) => {
+      const aTs = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+      const bTs = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+      return bTs - aTs;
+    });
+  }, [draftSops, reviewSops, sops, userEmailKey]);
 
   return (
     <MainLayout>
@@ -335,7 +474,7 @@ function SopsPageContent() {
       </div>
 
       <Tabs value={displayTab} onValueChange={handleTabChange}>
-        <TabsList className={`grid w-full mb-4 ${isManager ? "grid-cols-3" : "grid-cols-2"}`}>
+        <TabsList className={`grid w-full mb-4 ${isManager ? "grid-cols-4" : "grid-cols-3"}`}>
           <TabsTrigger value="list" className="gap-2">
             <List className="w-4 h-4" /> List of SOPs
           </TabsTrigger>
@@ -344,6 +483,9 @@ function SopsPageContent() {
               <UserCheck className="w-4 h-4" /> Manager Review
             </TabsTrigger>
           )}
+          <TabsTrigger value="history" className="gap-2">
+            <History className="w-4 h-4" /> Submission History
+          </TabsTrigger>
           <TabsTrigger value="templates" className="gap-2">
             <FileText className="w-4 h-4" /> Document Templates
           </TabsTrigger>
@@ -458,8 +600,8 @@ function SopsPageContent() {
                                                 <p className="font-semibold">{template.title}</p>
                                                 <p className="text-sm text-muted-foreground line-clamp-2">{template.description}</p>
                                               </CardContent>
-                                            </Card>
-                                          </Link>
+                                          </Card>
+                                        </Link>
                                         ))}
                                       </div>
                                     </DialogContent>
@@ -520,58 +662,65 @@ function SopsPageContent() {
                   </div>
                 ) : (
                   <Accordion type="multiple" className="w-full space-y-4">
-                    {managerReviewSops.map((sop) => (
-                      <AccordionItem value={sop.id ?? sop.sopId} key={sop.id ?? sop.sopId} className="border-b-0">
-                        <Card className="shadow-md">
-                          <AccordionTrigger className="p-6 text-left hover:no-underline">
-                            <div className="flex justify-between w-full items-center">
-                              <div className="space-y-1">
-                                <h3 className="font-bold text-lg text-primary">{sop.title}</h3>
-                                <p className="text-sm text-muted-foreground">
-                                  {sop.department} &bull; Submitted by {sop.responsiblePerson ?? sop.submittedBy ?? "—"}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
-                                <span className="text-sm text-muted-foreground">
-                                  {(() => {
-                                    const dt = new Date(sop.createdAt);
-                                    return isNaN(dt.getTime()) ? "-" : format(dt, "MMM d, yyyy");
-                                  })()}
-                                </span>
-                              </div>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-6 pb-6">
-                            <Separator className="mb-4" />
-                            <div className="space-y-6">
-                              <div>
-                                <h4 className="font-semibold mb-2">Description</h4>
-                                <p className="text-muted-foreground">{sop.description}</p>
-                              </div>
-                              <div>
-                                <h4 className="font-semibold mb-2">SOP Timeline & Steps</h4>
-                                <SopTimeline steps={sop.steps ?? []} />
-                              </div>
-                              <Separator />
-                              <div className="space-y-4">
-                                <h4 className="font-semibold">Manager Action</h4>
-                                <Textarea placeholder="Add comments for the creator (optional)..." />
-                                <div className="flex gap-4">
-                                  <Button onClick={() => handleApproval(sop.sopId ?? sop.id, "Approved")} className="gap-2 bg-green-600 hover:bg-green-700">
-                                    <Check className="w-4 h-4" /> Approve
-                                  </Button>
-                                  <Button onClick={() => handleApproval(sop.sopId ?? sop.id, "Draft")} variant="destructive" className="gap-2">
-                                    <X className="w-4 h-4" /> Reject
-                                  </Button>
+                    {managerReviewSops.map((sop) => {
+                      const noteKey = String(sop.sopId ?? sop.id ?? "");
+                      return (
+                        <AccordionItem value={sop.id ?? sop.sopId} key={sop.id ?? sop.sopId} className="border-b-0">
+                          <Card className="shadow-md">
+                            <AccordionTrigger className="p-6 text-left hover:no-underline">
+                              <div className="flex justify-between w-full items-center">
+                                <div className="space-y-1">
+                                  <h3 className="font-bold text-lg text-primary">{sop.title}</h3>
+                                  <p className="text-sm text-muted-foreground">
+                                    {sop.department} &bull; Submitted by {sop.responsiblePerson ?? sop.submittedBy ?? "Unknown"}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
+                                  <span className="text-sm text-muted-foreground">
+                                    {(() => {
+                                      const dt = new Date(sop.createdAt);
+                                      return isNaN(dt.getTime()) ? "-" : format(dt, "MMM d, yyyy");
+                                    })()}
+                                  </span>
                                 </div>
                               </div>
-                            </div>
-                          </AccordionContent>
-                      </Card>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-6 pb-6">
+                              <Separator className="mb-4" />
+                              <div className="space-y-6">
+                                <div>
+                                  <h4 className="font-semibold mb-2">Description</h4>
+                                  <p className="text-muted-foreground">{sop.description}</p>
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold mb-2">SOP Timeline & Steps</h4>
+                                  <SopTimeline steps={sop.steps ?? []} />
+                                </div>
+                                <Separator />
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold">Manager Action</h4>
+                                  <Textarea
+                                    placeholder="Add comments for the creator (optional)..."
+                                    value={reviewNotes[noteKey] ?? ""}
+                                    onChange={(e) => setReviewNotes((prev) => ({ ...prev, [noteKey]: e.target.value }))}
+                                  />
+                                  <div className="flex gap-4">
+                                    <Button onClick={() => handleApproval(noteKey, "Approved")} className="gap-2 bg-green-600 hover:bg-green-700">
+                                      <Check className="w-4 h-4" /> Approve
+                                    </Button>
+                                    <Button onClick={() => handleApproval(noteKey, "Draft")} variant="destructive" className="gap-2">
+                                      <X className="w-4 h-4" /> Reject
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </AccordionContent>
+                        </Card>
+                      </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
               )}
 
               {!showSpinner && managerReviewSops.length === 0 && (
@@ -581,6 +730,115 @@ function SopsPageContent() {
             </Card>
           </TabsContent>
         )}
+        <TabsContent value="history">
+          <Card>
+            <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <div>
+                <CardTitle>Submission History</CardTitle>
+                <CardDescription>Track the SOPs you've submitted and see their manager decisions.</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!userEmailKey ? (
+                <p className="text-muted-foreground text-center py-12">Log in to view your submission history.</p>
+              ) : mySubmissionHistory.length === 0 ? (
+                <p className="text-muted-foreground text-center py-12">You haven't submitted any SOPs yet.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>SOP Title</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Last Action</TableHead>
+                      <TableHead>Manager Comment</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {mySubmissionHistory.map((sop) => {
+                      const historyEvents = buildStatusHistory(sop);
+                      const lastEvent = historyEvents[historyEvents.length - 1];
+                      const actionLabel = getActionLabel(lastEvent, sop.status);
+                      const actionTime = lastEvent ? formatDateTime(lastEvent.decidedAt) : "-";
+                      const managerNote = lastEvent?.comment ?? sop.managerComment ?? "No comment";
+                      const linkSlug = sop.sopId ?? sop.id ?? "";
+                      return (
+                        <TableRow key={sop.sopId ?? sop.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col">
+                              <span>{sop.title}</span>
+                              <span className="text-xs text-muted-foreground">{sop.department}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{formatDateTime(sop.createdAt)}</TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusVariant(sop.status)}>{sop.status}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{actionLabel}</span>
+                              <span className="text-xs text-muted-foreground">{actionTime}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <span className="text-sm text-muted-foreground line-clamp-2">{managerNote}</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {linkSlug ? (
+                                <Button variant="outline" size="sm" asChild>
+                                  <Link href={`/sops/${encodeURIComponent(linkSlug)}`} prefetch={false}>
+                                    View
+                                  </Link>
+                                </Button>
+                              ) : (
+                                <Button variant="outline" size="sm" disabled>
+                                  View
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="sm" onClick={() => setHistoryDialogSop(sop)}>
+                                View History
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Dialog open={Boolean(historyDialogSop)} onOpenChange={(open) => !open && setHistoryDialogSop(null)}>
+            <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Status History: {historyDialogSop?.title}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+                {historyDialogSop ? (
+                  buildStatusHistory(historyDialogSop).map((event, index) => (
+                    <div key={`${event.decidedAt}-${index}`} className="border rounded-lg p-4 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Badge variant={getStatusVariant(event.status)}>{getActionLabel(event, event.status)}</Badge>
+                        <span className="text-xs text-muted-foreground">{formatDateTime(event.decidedAt)}</span>
+                      </div>
+                      {event.decidedBy && (
+                        <p className="text-sm text-muted-foreground">By {event.decidedBy}{event.decidedByEmail ? ` (${event.decidedByEmail})` : ''}</p>
+                      )}
+                      {event.comment && (
+                        <p className="text-sm whitespace-pre-wrap">{event.comment}</p>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">No history available.</p>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
 
         {/* Templates */}
         <TabsContent value="templates">
@@ -667,3 +925,6 @@ function SopsPageContent() {
 export default function SopsListPage() {
   return <SopsPageContent />;
 }
+
+
+
