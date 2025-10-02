@@ -585,9 +585,9 @@ export default function TasksPage() {
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="Kanban">
+        {/* <TabsContent value="Kanban">
           <TimelineDndBoard />
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
 
       {/* Delete Project Confirm */}
