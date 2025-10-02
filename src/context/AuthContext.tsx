@@ -54,6 +54,14 @@ function extractRole(profile: any, claimRole?: string) {
   return candidates.find((value) => typeof value === "string" && value.trim().length > 0);
 }
 
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+  return undefined;
+}
 async function loadProfileRTDB(u: FirebaseUser) {
   try {
     const db = getDatabase(app);
@@ -126,11 +134,25 @@ async function loadRoleFromClaims(u: FirebaseUser) {
 
 function toAppUser(u: FirebaseUser, profile?: any, claimRole?: string): User {
   const roleFromProfile = extractRole(profile, claimRole);
+  const department = firstString(profile?.department, profile?.Department);
+  const cluster = firstString(profile?.cluster, profile?.Cluster);
+  const group = firstString(
+    profile?.group,
+    profile?.Group,
+    profile?.businessUnit,
+    profile?.BusinessUnit,
+    profile?.business_unit
+  );
+  const section = firstString(profile?.section, profile?.Section, profile?.team, profile?.Team);
+
   return {
     name: profile?.fullname ?? u.displayName ?? (u.email ? u.email.split("@")[0]! : ""),
     email: u.email ?? "",
-    department: profile?.department ?? profile?.Department,
+    department: department ?? "",
     systemRole: normalizeRole(roleFromProfile ?? claimRole),
+    cluster,
+    group,
+    section,
   };
 }
 
@@ -232,3 +254,5 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
   return ctx;
 }
+
+

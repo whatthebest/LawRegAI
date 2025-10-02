@@ -5,8 +5,12 @@ export interface User {
   name: string;
   email: string;
   department: string;
-  systemRole?: string; 
+  systemRole?: string;
+  cluster?: string;
+  group?: string;
+  section?: string;
 }
+
 
 // ----- SOP Definitions -----
 
@@ -93,6 +97,8 @@ export interface DocumentTemplate {
   title: string;
   description: string;
   fields: TemplateField[];
+  content?: string;
   createdAt: string; // ISO date string
   relevantSopId?: string; // Link to a relevant SOP
 }
+

@@ -50,11 +50,10 @@ const userFormSchema = z.object({
   employeeId: z.string().optional(),
   contactNumber: z.string().optional(),
   cluster: z.string().optional(),
-  businessUnit: z.string().optional(),
-  team: z.string().optional(),
+  group: z.string().optional(),
+  section: z.string().optional(),
   managerName: z.string().optional(),
   managerEmail: z.string().email().optional(),
-  groupTh: z.string().optional(),
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
@@ -79,6 +78,13 @@ export default function EditUserPage({ params }: { params: { id: string } }) {
       department: "Operations",
       systemRole: "User",
       role: "Owner",
+      employeeId: "",
+      contactNumber: "",
+      cluster: "",
+      group: "",
+      section: "",
+      managerName: "",
+      managerEmail: "",
     },
   });
 
@@ -102,7 +108,22 @@ useEffect(() => {
         return;
       }
       const data = await res.json();
-      if (!ignore) form.reset(data);
+      if (!ignore) {
+        form.reset({
+          fullname: data.fullname ?? "",
+          email: data.email ?? "",
+          department: (data.department ?? "Operations") as Department,
+          systemRole: (data.systemRole ?? "User") as SystemRole,
+          role: (data.role ?? "Owner") as WorkflowRole,
+          employeeId: data.employeeId ?? "",
+          contactNumber: data.contactNumber ?? "",
+          cluster: data.cluster ?? "",
+          group: data.group ?? data.businessUnit ?? "",
+          section: data.section ?? data.team ?? "",
+          managerName: data.managerName ?? "",
+          managerEmail: data.managerEmail ?? "",
+        });
+      }
     } catch {
       toast({ title: "Error", description: "Failed to load user.", variant: "destructive" });
       router.push("/admin");
@@ -115,7 +136,7 @@ useEffect(() => {
 
 function stripEmpty<T extends Record<string, any>>(obj: T) {
   const out: any = { ...obj };
-  ["employeeId","contactNumber","cluster","businessUnit","team","managerName","managerEmail","groupTh"].forEach(k => {
+  ["employeeId","contactNumber","cluster","group","section","managerName","managerEmail"].forEach(k => {
     if (typeof out[k] === "string" && out[k].trim() === "") delete out[k];
   });
   return out;
@@ -282,16 +303,16 @@ async function onDelete() {
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField name="businessUnit" control={form.control} render={({ field }) => (
+                <FormField name="group" control={form.control} render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Business Unit</FormLabel>
+                    <FormLabel>Group (กลุ่ม)</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField name="team" control={form.control} render={({ field }) => (
+                <FormField name="section" control={form.control} render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Team</FormLabel>
+                    <FormLabel>Section (ส่วนงาน)</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -307,13 +328,6 @@ async function onDelete() {
                   <FormItem>
                     <FormLabel>Manager Email</FormLabel>
                     <FormControl><Input type="email" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField name="groupTh" control={form.control} render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>กลุ่ม (groupTh)</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

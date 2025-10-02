@@ -14,11 +14,10 @@ export const profileExtrasSchema = z.object({
     z.string().regex(/^[0-9+\-\s().]{7,20}$/, "Invalid phone")
   ).optional(),
   cluster: emptyToUndef(z.string()).optional(),
-  businessUnit: emptyToUndef(z.string()).optional(),
-  team: emptyToUndef(z.string()).optional(),
+  group: emptyToUndef(z.string()).optional(),
+  section: emptyToUndef(z.string()).optional(),
   managerName: emptyToUndef(z.string()).optional(),
   managerEmail: emptyToUndef(z.string().email()).optional(),
-  groupTh: emptyToUndef(z.string()).optional(), // กลุ่ม
 });
 
 // trim + lowercase email; trim fullname

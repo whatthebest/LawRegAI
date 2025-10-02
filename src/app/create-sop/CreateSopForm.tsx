@@ -1,7 +1,7 @@
 // app/create-sop/CreateSopForm.tsx  (CLIENT component)
 "use client";
 
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, type FieldPath, type FieldPathValue } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/context/AuthContext";
@@ -24,6 +24,7 @@ import useSWR from 'swr';
 import type { TemplateRecord } from "@/lib/api/templates";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
+const sopDepartmentValues = [...sopDepartments] as [typeof sopDepartments[number], ...typeof sopDepartments[number][]];
 
 
 // ---------- Zod schemas ----------
@@ -46,7 +47,7 @@ const sopFormSchema = z.object({
   sopId: z.string(),
   title: z.string().min(1, "SOP title must be at least 5 characters."),
   description: z.string().min(1, "Description must be at least 20 characters."),
-  department: z.enum(["Operations", "Engineering", "HR", "Marketing","Compliance"]),
+  department: z.enum(sopDepartmentValues),
   cluster: z.string().optional(),
   group: z.string().optional(),
   section: z.string().optional(),
@@ -89,13 +90,37 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
   const sopId = form.watch("sopId");
   const steps = form.watch("steps");
 
-  // Only set date + user name locally
+  // Only set date + user defaults locally
   useEffect(() => {
     setDateCreated(new Date().toLocaleDateString("en-CA"));
-    if (user) form.setValue("responsiblePerson", user.name);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+    if (!user) return;
 
+    const setIfBlank = <K extends FieldPath<SopFormValues>>(key: K, value: FieldPathValue<SopFormValues, K> | undefined) => {
+      if (value === undefined || value === null) return;
+      if (typeof value === "string" && value.trim().length === 0) return;
+      const current = form.getValues(key);
+      const isCurrentEmpty =
+        current === undefined ||
+        current === null ||
+        (typeof current === "string" && current.trim().length === 0);
+      if (isCurrentEmpty) {
+        form.setValue(key, value, { shouldDirty: false });
+      }
+    };
+
+    setIfBlank("responsiblePerson", user.name);
+
+    const isKnownDepartment = (value: unknown): value is (typeof sopDepartments)[number] =>
+      typeof value === "string" && sopDepartments.includes(value as (typeof sopDepartments)[number]);
+    if (isKnownDepartment(user.department)) {
+      setIfBlank("department", user.department);
+    }
+
+    setIfBlank("cluster", user.cluster);
+    setIfBlank("group", user.group);
+    setIfBlank("section", user.section);
+    // eslint-disable-next-line react-hooks-exhaustive-deps
+  }, [user]);
   useEffect(() => {
     async function fetchNextSopId() {
       try {
@@ -608,3 +633,10 @@ export default function CreateSopForm({ initialSopId }: { initialSopId: string }
     </MainLayout>
   );
 }
+
+
+
+
+
+
+

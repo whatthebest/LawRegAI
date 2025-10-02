@@ -38,11 +38,10 @@ type NewUserForm = {
   employeeId?: string;
   contactNumber?: string;
   cluster?: string;
-  businessUnit?: string;
-  team?: string;
+  group?: string;
+  section?: string;
   managerName?: string;
   managerEmail?: string;
-  groupTh?: string;
 };
 
 
@@ -66,11 +65,10 @@ export default function AdminPage() {
     employeeId: "",
     contactNumber: "",
     cluster: "",
-    businessUnit: "",
-    team: "",
+    group: "",
+    section: "",
     managerName: "",
     managerEmail: "",
-    groupTh: "",
   });
 
   const [error, setError] = useState<string>("");
@@ -116,12 +114,11 @@ export default function AdminPage() {
       employeeId: "",
       contactNumber: "",
       cluster: "",
-      businessUnit: "",
-      team: "",
+      group: "",
+      section: "",
       managerName: "",
       managerEmail: "",
-      groupTh: "",
-    });
+      });
     setError("");
   };
 
@@ -137,11 +134,10 @@ export default function AdminPage() {
       "employeeId",
       "contactNumber",
       "cluster",
-      "businessUnit",
-      "team",
+      "group",
+      "section",
       "managerName",
       "managerEmail",
-      "groupTh",
     ] as const;
 
     for (const k of optionalKeys) {
@@ -156,8 +152,8 @@ export default function AdminPage() {
   function stripEmpty<T extends Record<string, any>>(obj: T) {
     const out: any = { ...obj };
     [
-      "employeeId","contactNumber","cluster","businessUnit",
-      "team","managerName","managerEmail","groupTh",
+      "employeeId","contactNumber","cluster","group",
+      "section","managerName","managerEmail",
     ].forEach(k => {
       if (typeof out[k] === "string" && out[k].trim() === "") delete out[k];
     });
@@ -185,11 +181,10 @@ export default function AdminPage() {
       employeeId: form.employeeId || undefined,
       contactNumber: form.contactNumber || undefined,
       cluster: form.cluster || undefined,
-      businessUnit: form.businessUnit || undefined,
-      team: form.team || undefined,
+      group: form.group || undefined,
+      section: form.section || undefined,
       managerName: form.managerName || undefined,
       managerEmail: form.managerEmail || undefined,
-      groupTh: form.groupTh || undefined,
     });
   
     try {
@@ -414,12 +409,12 @@ export default function AdminPage() {
                       <Input value={form.cluster ?? ""} onChange={(e) => setForm({ ...form, cluster: e.target.value })} />
                     </div>
                     <div className="grid gap-2">
-                      <label className="text-sm font-medium">Business Unit</label>
-                      <Input value={form.businessUnit ?? ""} onChange={(e) => setForm({ ...form, businessUnit: e.target.value })} />
+                      <label className="text-sm font-medium">Group (กลุ่ม)</label>
+                      <Input value={form.group ?? ""} onChange={(e) => setForm({ ...form, group: e.target.value })} />
                     </div>
                     <div className="grid gap-2">
-                      <label className="text-sm font-medium">Team</label>
-                      <Input value={form.team ?? ""} onChange={(e) => setForm({ ...form, team: e.target.value })} />
+                      <label className="text-sm font-medium">Section (ส่วนงาน)</label>
+                      <Input value={form.section ?? ""} onChange={(e) => setForm({ ...form, section: e.target.value })} />
                     </div>
                     <div className="grid gap-2">
                       <label className="text-sm font-medium">Manager Name</label>
@@ -428,10 +423,6 @@ export default function AdminPage() {
                     <div className="grid gap-2">
                       <label className="text-sm font-medium">Manager Email</label>
                       <Input type="email" value={form.managerEmail ?? ""} onChange={(e) => setForm({ ...form, managerEmail: e.target.value })} placeholder="manager@company.com" />
-                    </div>
-                    <div className="grid gap-2">
-                      <label className="text-sm font-medium">กลุ่ม (groupTh)</label>
-                      <Input value={form.groupTh ?? ""} onChange={(e) => setForm({ ...form, groupTh: e.target.value })} />
                     </div>
                   </div>
                 </div>
