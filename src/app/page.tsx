@@ -42,6 +42,7 @@ type DbTask = {
 export default function HomePage() {
   const { user } = useAuth();
   const isManager = user?.systemRole === "Manager";
+  const isRegTechTeam = user?.systemRole === "RegTechTeam";
 
   const { data: projectsData, error: projectsError, isLoading: projectsLoading } = useSWR("/api/projects", fetcher);
   const { data: sopsData, error: sopsError, isLoading: sopsLoading } = useSWR("/api/sops", fetcher);
@@ -51,7 +52,7 @@ export default function HomePage() {
   const projects = Array.isArray(projectsData) ? projectsData : [];
   const sops = Array.isArray(sopsData) ? sopsData : [];
 
-  const managerEmailKey = normalizeEmail(user?.email);
+  const userEmailKey = normalizeEmail(user?.email);
   const userDirectory = useMemo(() => {
     if (!Array.isArray(usersData)) return {} as Record<string, { managerEmail?: string; managerName?: string }>;
     const map: Record<string, { managerEmail?: string; managerName?: string }> = {};
@@ -95,20 +96,34 @@ export default function HomePage() {
 
   const { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview } = useMemo(() => {
     const allSopsInReview: SOP[] = (sops || []).filter((s: SOP) => s.status === "In Review");
-    const sopsInReview = isManager && managerEmailKey
-      ? allSopsInReview.filter((sop) => {
-          const assigned = normalizeEmail(sop.managerEmail);
-          if (assigned) return assigned === managerEmailKey;
 
-          const submitterEmail = normalizeEmail(sop.submittedByEmail);
-          if (submitterEmail) {
-            const mapped = userDirectory[submitterEmail]?.managerEmail;
-            if (mapped) return mapped === managerEmailKey;
+    const relevantSops = allSopsInReview.filter((sop) => {
+      if (isRegTechTeam) return true;
+
+      if (!userEmailKey) return false;
+
+      const managerEmail = normalizeEmail(sop.managerEmail);
+      const submitterEmail = normalizeEmail(sop.submittedByEmail);
+      const responsibleEmail = normalizeEmail(sop.responsiblePerson);
+      const ownerEmail = normalizeEmail(sop.owner);
+
+      const participantEmails = [managerEmail, submitterEmail, responsibleEmail, ownerEmail].filter(Boolean) as string[];
+      if (participantEmails.includes(userEmailKey)) {
+        return true;
+      }
+
+      if (isManager) {
+        if (submitterEmail) {
+          const derivedManager = userDirectory[submitterEmail]?.managerEmail;
+          if (derivedManager && derivedManager === userEmailKey) {
+            return true;
           }
+        }
+      }
 
-          return false;
-        })
-      : allSopsInReview;
+      return false;
+    });
+
     const projectsInProgress = (projects || []).filter((p: any) => (
       p.status === "Active" || p.status === "In Progress"
     ));
@@ -117,8 +132,8 @@ export default function HomePage() {
     const toReviewTasks = mine.filter((t) => t.reviewer === user?.email && t.status === "Review");
     const toApproveTasks = mine.filter((t) => t.approver === user?.email && t.status === "ReadyToApprove");
 
-    return { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview };
-  }, [user, projects, sops, flatTasks, isManager, managerEmailKey, userDirectory]);
+    return { toReviewTasks, toApproveTasks, projectsInProgress, sopsInReview: relevantSops };
+  }, [user, userEmailKey, projects, sops, flatTasks, isManager, isRegTechTeam, userDirectory]);
 
   if (projectsLoading || sopsLoading) {
     return (
@@ -290,3 +305,4 @@ export default function HomePage() {
     </MainLayout>
   );
 }
+
