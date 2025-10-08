@@ -1,10 +1,11 @@
 // src/lib/api/templates.ts
-import type { DocumentTemplate } from "@/lib/types";
+import type { DocumentTemplate, TemplateField } from "@/lib/types";
 
 export interface TemplatePayload {
   title: string;
   description: string;
-  content: string;
+  fields: TemplateField[];
+  relevantSopId?: string;
 }
 
 export type TemplateRecord = DocumentTemplate & {
@@ -58,8 +59,9 @@ function normalizeTemplate(data: any): TemplateRecord {
     templateId: String(templateId ?? ""),
     title: String(data?.title ?? ""),
     description: String(data?.description ?? ""),
-    content: String(data?.content ?? ""),
+    fields: Array.isArray(data?.fields) ? data.fields : [],
     createdAt,
+    relevantSopId: data?.relevantSopId,
     ...(updatedAt ? { updatedAt } : {}),
     ...(typeof data?.templateIndex === "number" ? { templateIndex: data.templateIndex } : {}),
     ...(data?.key ? { key: String(data.key) } : {}),

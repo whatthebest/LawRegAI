@@ -115,7 +115,7 @@ export const mockSops: SOP[] = [
 ];
 
 // ----- Filter options -----
-export const sopDepartments: SOPDepartment[] = ['HR', 'Engineering', 'Operations', 'Marketing', 'Customer Support', 'IT'];
+export const sopDepartments = ['HR', 'Engineering', 'Operations', 'Marketing', 'Customer Support', 'IT', 'Compliance'] as const satisfies readonly SOPDepartment[];
 export const sopStatuses: SOPStatus[] = ['Draft', 'In Review', 'Approved', 'Archived'];
 export const sopStepStatuses: SOPStepStatus[] = ['Pending', 'In Progress', 'Review', 'Approved', 'Rejected'];
 
@@ -135,6 +135,11 @@ export const mockTemplates: DocumentTemplate[] = [
         id: 'tpl-001',
         title: 'Budget Request Form',
         description: 'Standard form for requesting quarterly budget allocation for new projects or operational costs.',
+        fields: [
+            { name: 'project_name', label: 'Project Name', type: 'Text' },
+            { name: 'amount', label: 'Amount Requested', type: 'Number' },
+            { name: 'justification', label: 'Justification', type: 'Text' }
+        ],
         content: '## Budget Request\n\n**Project Name:** {{project_name}}\n\n**Amount Requested:** {{amount}}\n\n**Justification:**\n\n{{justification}}',
         createdAt: '2024-03-15T09:00:00Z',
     },
@@ -142,7 +147,15 @@ export const mockTemplates: DocumentTemplate[] = [
         id: 'tpl-002',
         title: 'Security Incident Report',
         description: 'Used to document any security incidents, including data breaches, unauthorized access, or policy violations.',
+        fields: [
+            { name: 'date', label: 'Date of Incident', type: 'Text' },
+            { name: 'type', label: 'Type of Incident', type: 'Text' },
+            { name: 'description', label: 'Detailed Description', type: 'Text' }
+        ],
         content: '## Security Incident Report\n\n**Date of Incident:** {{date}}\n\n**Type of Incident:** {{type}}\n\n**Detailed Description:**\n\n{{description}}',
         createdAt: '2024-02-28T14:30:00Z',
     },
 ];
+
+
+

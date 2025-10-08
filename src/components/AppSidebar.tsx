@@ -34,11 +34,11 @@ const navLinks = [
   { href: "/", label: "Overview", icon: LayoutGrid },
   { href: "/sops", label: "SOPs Management", icon: ListChecks },
   { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
-  { href: "/admin", label: "Admin", icon: UserCog, roles: ["Manager","RegTechTeam"] },
+  { href: "/admin", label: "Admin", icon: UserCog, roles: ["RegTechTeam"] },
 ];
 
 export default function AppSidebar() {
-  const { user, logout } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const { setTheme } = useTheme();
   const pathname = usePathname();
 

@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from "react";
 import MainLayout from "@/components/MainLayout";
+import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { UserCog, Plus, X } from "lucide-react";
 
 /** Unions aligned to your Zod schema */
-type Department   = "Operations" | "Engineering" | "HR";
+type Department   = "Operations" | "Engineering" | "HR" | "Compliance"; // etc
 type SystemRole   = "RegTechTeam" | "Manager" | "User";    // RBAC
 type WorkflowRole = "Owner" | "Reviewer" | "Approver";     // SOP workflow
 
@@ -36,11 +38,10 @@ type NewUserForm = {
   employeeId?: string;
   contactNumber?: string;
   cluster?: string;
-  businessUnit?: string;
-  team?: string;
+  group?: string;
+  section?: string;
   managerName?: string;
   managerEmail?: string;
-  groupTh?: string;
 };
 
 
@@ -64,14 +65,17 @@ export default function AdminPage() {
     employeeId: "",
     contactNumber: "",
     cluster: "",
-    businessUnit: "",
-    team: "",
+    group: "",
+    section: "",
     managerName: "",
     managerEmail: "",
-    groupTh: "",
   });
 
   const [error, setError] = useState<string>("");
+
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const isRegTechTeam = user?.systemRole === "RegTechTeam";
 
   // Load users from API
   async function loadUsers() {
@@ -88,7 +92,16 @@ export default function AdminPage() {
       setLoading(false);
     }
   }
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => {
+    if (!isRegTechTeam) return;
+    loadUsers();
+  }, [isRegTechTeam]);
+
+  useEffect(() => {
+    if (!isLoading && !isRegTechTeam) {
+      router.replace("/");
+    }
+  }, [isLoading, isRegTechTeam, router]);
 
   const resetForm = () => {
     setForm({
@@ -101,12 +114,11 @@ export default function AdminPage() {
       employeeId: "",
       contactNumber: "",
       cluster: "",
-      businessUnit: "",
-      team: "",
+      group: "",
+      section: "",
       managerName: "",
       managerEmail: "",
-      groupTh: "",
-    });
+      });
     setError("");
   };
 
@@ -122,11 +134,10 @@ export default function AdminPage() {
       "employeeId",
       "contactNumber",
       "cluster",
-      "businessUnit",
-      "team",
+      "group",
+      "section",
       "managerName",
       "managerEmail",
-      "groupTh",
     ] as const;
 
     for (const k of optionalKeys) {
@@ -141,8 +152,8 @@ export default function AdminPage() {
   function stripEmpty<T extends Record<string, any>>(obj: T) {
     const out: any = { ...obj };
     [
-      "employeeId","contactNumber","cluster","businessUnit",
-      "team","managerName","managerEmail","groupTh",
+      "employeeId","contactNumber","cluster","group",
+      "section","managerName","managerEmail",
     ].forEach(k => {
       if (typeof out[k] === "string" && out[k].trim() === "") delete out[k];
     });
@@ -170,11 +181,10 @@ export default function AdminPage() {
       employeeId: form.employeeId || undefined,
       contactNumber: form.contactNumber || undefined,
       cluster: form.cluster || undefined,
-      businessUnit: form.businessUnit || undefined,
-      team: form.team || undefined,
+      group: form.group || undefined,
+      section: form.section || undefined,
       managerName: form.managerName || undefined,
       managerEmail: form.managerEmail || undefined,
-      groupTh: form.groupTh || undefined,
     });
   
     try {
@@ -211,6 +221,24 @@ export default function AdminPage() {
     }
   };
   
+
+  if (!isRegTechTeam) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[60vh] items-center justify-center p-6">
+          <Card className="max-w-md text-center">
+            <CardHeader>
+              <CardTitle>Access restricted</CardTitle>
+              <CardDescription>You need RegTechTeam permissions to view the admin panel.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button onClick={() => router.replace("/")}>Go to Overview</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -287,12 +315,12 @@ export default function AdminPage() {
 
       {/* Modal */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-10 sm:items-center sm:p-6">
           {/* backdrop */}
           <div className="absolute inset-0 bg-black/50" onClick={onClose} />
           {/* dialog */}
-          <div className="relative z-10 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
+          <div className="relative z-10 w-full max-w-2xl rounded-2xl bg-white p-4 shadow-xl flex flex-col max-h-[calc(100vh-3rem)] sm:max-h-[calc(100vh-4rem)] sm:p-6">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <h2 className="text-xl font-semibold">Add User</h2>
               <button
                 aria-label="Close"
@@ -303,114 +331,114 @@ export default function AdminPage() {
               </button>
             </div>
 
-            <form onSubmit={onSubmit} className="space-y-6">
-              {error && (
-                <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2 text-sm">
-                  {error}
-                </div>
-              )}
+            <div className="flex-1 overflow-y-auto pr-4 -mr-4 max-h-full sm:pr-2 sm:-mr-2">
+              <form onSubmit={onSubmit} className="space-y-6">
+                {error && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2 text-sm">
+                    {error}
+                  </div>
+                )}
 
-              {/* Core fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Full Name</label>
-                  <Input value={form.fullname} onChange={(e) => setForm({ ...form, fullname: e.target.value })} required />
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Email</label>
-                  <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Password</label>
-                  <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Temporary password" required />
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Department</label>
-                  <select
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={form.department}
-                    onChange={(e) => setForm({ ...form, department: e.target.value as Department })}
-                  >
-                    <option value="Operations">Operations</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="HR">HR</option>
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">System Role</label>
-                  <select
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={form.systemRole}
-                    onChange={(e) => setForm({ ...form, systemRole: e.target.value as SystemRole })}
-                  >
-                    <option value="User">User</option>
-                    <option value="Manager">Manager</option>
-                    <option value="RegTechTeam">RegTechTeam</option>
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Workflow Role</label>
-                  <select
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={form.role}
-                    onChange={(e) => setForm({ ...form, role: e.target.value as WorkflowRole })}
-                  >
-                    <option value="Owner">Owner</option>
-                    <option value="Reviewer">Reviewer</option>
-                    <option value="Approver">Approver</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Additional Details (optional extras) */}
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-3">Additional Details (optional)</h3>
+                {/* Core fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Employee ID</label>
-                    <Input value={form.employeeId ?? ""} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} />
+                    <label className="text-sm font-medium">Full Name</label>
+                    <Input value={form.fullname} onChange={(e) => setForm({ ...form, fullname: e.target.value })} required />
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Contact Number</label>
-                    <Input type="tel" value={form.contactNumber ?? ""} onChange={(e) => setForm({ ...form, contactNumber: e.target.value })} placeholder="e.g., 0912345678" />
+                    <label className="text-sm font-medium">Email</label>
+                    <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Cluster</label>
-                    <Input value={form.cluster ?? ""} onChange={(e) => setForm({ ...form, cluster: e.target.value })} />
+                    <label className="text-sm font-medium">Password</label>
+                    <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Temporary password" required />
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Business Unit</label>
-                    <Input value={form.businessUnit ?? ""} onChange={(e) => setForm({ ...form, businessUnit: e.target.value })} />
+                    <label className="text-sm font-medium">Department</label>
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.department}
+                      onChange={(e) => setForm({ ...form, department: e.target.value as Department })}
+                    >
+                      <option value="Operations">Operations</option>
+                      <option value="Engineering">Engineering</option>
+                      <option value="HR">HR</option>
+                      <option value="Compliance">Compliance</option>
+                    </select>
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Team</label>
-                    <Input value={form.team ?? ""} onChange={(e) => setForm({ ...form, team: e.target.value })} />
+                    <label className="text-sm font-medium">System Role</label>
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.systemRole}
+                      onChange={(e) => setForm({ ...form, systemRole: e.target.value as SystemRole })}
+                    >
+                      <option value="User">User</option>
+                      <option value="Manager">Manager</option>
+                      <option value="RegTechTeam">RegTechTeam</option>
+                    </select>
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Manager Name</label>
-                    <Input value={form.managerName ?? ""} onChange={(e) => setForm({ ...form, managerName: e.target.value })} />
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium">Manager Email</label>
-                    <Input type="email" value={form.managerEmail ?? ""} onChange={(e) => setForm({ ...form, managerEmail: e.target.value })} placeholder="manager@company.com" />
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium">กลุ่ม (groupTh)</label>
-                    <Input value={form.groupTh ?? ""} onChange={(e) => setForm({ ...form, groupTh: e.target.value })} />
+                    <label className="text-sm font-medium">Workflow Role</label>
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.role}
+                      onChange={(e) => setForm({ ...form, role: e.target.value as WorkflowRole })}
+                    >
+                      <option value="Owner">Owner</option>
+                      <option value="Reviewer">Reviewer</option>
+                      <option value="Approver">Approver</option>
+                    </select>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save</Button>
-              </div>
-            </form>
+                {/* Additional Details (optional extras) */}
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">Additional Details (optional)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Employee ID</label>
+                      <Input value={form.employeeId ?? ""} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Contact Number</label>
+                      <Input type="tel" value={form.contactNumber ?? ""} onChange={(e) => setForm({ ...form, contactNumber: e.target.value })} placeholder="e.g., 0912345678" />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Cluster</label>
+                      <Input value={form.cluster ?? ""} onChange={(e) => setForm({ ...form, cluster: e.target.value })} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Group (กลุ่ม)</label>
+                      <Input value={form.group ?? ""} onChange={(e) => setForm({ ...form, group: e.target.value })} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Section (ส่วนงาน)</label>
+                      <Input value={form.section ?? ""} onChange={(e) => setForm({ ...form, section: e.target.value })} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Manager Name</label>
+                      <Input value={form.managerName ?? ""} onChange={(e) => setForm({ ...form, managerName: e.target.value })} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Manager Email</label>
+                      <Input type="email" value={form.managerEmail ?? ""} onChange={(e) => setForm({ ...form, managerEmail: e.target.value })} placeholder="manager@company.com" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 flex-shrink-0">
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Save</Button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
     </MainLayout>
   );
 }
+

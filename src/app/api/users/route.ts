@@ -10,7 +10,7 @@ export const revalidate = 0;
 const USERS = "users";
 
 /* ===== enums must match your UI ===== */
-const departments   = ["Operations", "Engineering", "HR"] as const;
+const departments   = ["Operations", "Engineering", "HR" ,"Compliance"] as const;
 const roles         = ["Owner", "Reviewer", "Approver"] as const;          // workflow role
 const systemRoles   = ["RegTechTeam", "Manager", "User"] as const;         // RBAC
 
@@ -23,11 +23,10 @@ const profileExtrasSchema = z.object({
   employeeId:     emptyToUndef(z.string().min(1).max(20).regex(/^[A-Za-z0-9._-]+$/)).optional(),
   contactNumber:  emptyToUndef(z.string().regex(/^[0-9+\-\s().]{7,20}$/)).optional(),
   cluster:        emptyToUndef(z.string().min(1).max(120)).optional(),
-  businessUnit:   emptyToUndef(z.string().min(1).max(120)).optional(),
-  team:           emptyToUndef(z.string().min(1).max(120)).optional(),
+  group:         emptyToUndef(z.string().min(1).max(120)).optional(),
+  section:       emptyToUndef(z.string().min(1).max(120)).optional(),
   managerName:    emptyToUndef(z.string().min(1).max(120)).optional(),
-  managerEmail:   emptyToUndef(z.string().email()).optional(),
-  groupTh:        emptyToUndef(z.string().min(1).max(120)).optional(),
+  managerEmail:   emptyToUndef(z.string().email()).optional(),
 });
 
 /* ===== incoming payload ===== */
@@ -48,7 +47,14 @@ export async function GET() {
       return NextResponse.json([], { status: 200, headers: { "Cache-Control": "no-store" } });
     }
     const raw = (snap.val() ?? {}) as Record<string, any>;
-    const list = Object.entries(raw).map(([id, u]) => ({ id, ...u }));
+    const list = Object.entries(raw).map(([id, u]) => {
+      const entry: Record<string, any> = { id, ...u };
+      entry.group = entry.group ?? entry.businessUnit ?? "";
+      entry.section = entry.section ?? entry.team ?? "";
+      delete entry.businessUnit;
+      delete entry.team;
+      return entry;
+    });
     list.sort((a, b) =>
       String(a.fullname ?? "").localeCompare(String(b.fullname ?? ""), undefined, { sensitivity: "base" })
     );

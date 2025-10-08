@@ -5,13 +5,30 @@ export interface User {
   name: string;
   email: string;
   department: string;
-  systemRole?: string; 
+  systemRole?: string;
+  cluster?: string;
+  group?: string;
+  section?: string;
 }
+
 
 // ----- SOP Definitions -----
 
 export type SOPStatus = 'Draft' | 'In Review' | 'Approved' | 'Archived';
-export type SOPDepartment = 'Operations' | 'Engineering' | 'HR' | 'Marketing' | 'Customer Support' | 'IT';
+
+export type SopStatusAction = 'submitted' | 'approved' | 'rejected' | 'returned' | 'updated';
+
+export interface SopStatusEvent {
+  status: SOPStatus;
+  decidedAt: string;
+  decidedBy?: string;
+  decidedByEmail?: string;
+  comment?: string;
+  action?: SopStatusAction;
+  previousStatus?: SOPStatus;
+}
+
+export type SOPDepartment = 'Operations' | 'Engineering' | 'HR' | 'Marketing' | 'Customer Support' | 'IT' | 'Compliance';
 
 export interface SOP {
   id: string;
@@ -29,8 +46,14 @@ export interface SOP {
 
   // Optional submitter for Manager Review tab fallback
   submittedBy?: string;                // ← ADD THIS
-
+  submittedByEmail?: string;
+  submitterUid?: string;
+  managerEmail?: string;
+  managerName?: string;
+  managerComment?: string | null;
+  statusHistory?: SopStatusEvent[];
   version: string;
+
   sla: number;                         // days
 
   createdAt: string;                   // ISO
@@ -54,6 +77,7 @@ export interface SOPStep {
   stepType: SOPStepType;
   nextStepYes?: string; // Optional, for Decision steps
   nextStepNo?: string;  // Optional, for Decision steps
+  templateId?: string; // ID of the linked document template
   sla: number; // in days
   owner: string; // user email
   reviewer: string;
@@ -75,10 +99,21 @@ export interface Project {
 }
 
 // ----- Document Template Definitions -----
+export type TemplateFieldType = "Text" | "Number" | "Checklist" | "Person";
+
+export interface TemplateField {
+  name: string; // a unique machine-readable name, e.g., "project_name"
+  label: string; // a human-readable label, e.g., "Project Name"
+  type: TemplateFieldType;
+}
+
 export interface DocumentTemplate {
   id: string;
   title: string;
   description: string;
-  content: string; // The actual template body, can contain placeholders like {{variable}}
+  fields: TemplateField[];
+  content?: string;
   createdAt: string; // ISO date string
+  relevantSopId?: string; // Link to a relevant SOP
 }
+

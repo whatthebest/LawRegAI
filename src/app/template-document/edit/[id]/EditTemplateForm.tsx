@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
@@ -13,15 +13,32 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { FileText } from "lucide-react";
-import { mockTemplates } from "@/lib/mockData";
-import { updateTemplate } from "@/lib/api/templates";
+import { FileText, PlusCircle, Trash2, Workflow } from "lucide-react";
+import { updateTemplate, type TemplateRecord } from "@/lib/api/templates";
+import useSWR from 'swr';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { SOP } from "@/lib/types";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { SopTimeline } from "@/components/SopTimeline";
+
+const fieldTypes = ["Text", "Number", "Checklist", "Person"] as const;
+
+// Zod schema for a single field
+const templateFieldSchema = z.object({
+  name: z.string().min(1, "Field name is required."),
+  label: z.string().min(1, "Field label is required."),
+  type: z.enum(fieldTypes),
+});
+
 
 // Zod schema for the template form
 const templateFormSchema = z.object({
   title: z.string().min(5, "Template title must be at least 5 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
-  content: z.string().min(20, "Template content must be at least 20 characters."),
+  fields: z.array(templateFieldSchema).min(1, "At least one field is required."),
+  relevantSopId: z.string().optional(),
 });
 
 type TemplateFormValues = z.infer<typeof templateFormSchema>;
@@ -30,35 +47,150 @@ interface EditTemplateFormProps {
   templateId: string;
 }
 
+const fetcher = (url: string) => fetch(url, { cache: 'no-store' }).then(res => {
+  if (!res.ok) throw new Error('Failed to fetch');
+  return res.json();
+});
+
+const templateFetcher = ([_key, id]: readonly [string, string]) =>
+  fetcher(`/api/templates/${encodeURIComponent(id)}`);
+
+
+const slugify = (str: string) =>
+  str
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "_")
+    .replace(/^-+|-+$/g, "");
+
+// --- Add Field Dialog Component ---
+function AddFieldDialog({ onAddField }: { onAddField: (field: z.infer<typeof templateFieldSchema>) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [label, setLabel] = useState('');
+    const [name, setName] = useState('');
+    const [type, setType] = useState<typeof fieldTypes[number]>('Text');
+
+    const handleLabelChange = (value: string) => {
+        setLabel(value);
+        setName(slugify(value));
+    };
+
+    const handleSave = () => {
+        if (label.trim() && name.trim()) {
+            onAddField({ label, name, type });
+            setLabel('');
+            setName('');
+            setType('Text');
+            setIsOpen(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                    <PlusCircle className="w-4 h-4" />
+                    Add Field
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add New Field</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="field-label">Field Label</Label>
+                        <Input id="field-label" value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder="e.g., Project Name" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="field-name">Field Name (auto)</Label>
+                        <Input id="field-name" value={name} readOnly placeholder="e.g., project_name" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="field-type">Field Type</Label>
+                        <Select value={type} onValueChange={(v) => setType(v as any)}>
+                            <SelectTrigger id="field-type">
+                                <SelectValue placeholder="Select a type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {fieldTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="ghost">Cancel</Button>
+                    </DialogClose>
+                    <Button type="button" onClick={handleSave} disabled={!label.trim() || !name.trim()}>Add</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function EditTemplateForm({ templateId }: EditTemplateFormProps) {
   const { toast } = useToast();
   const router = useRouter();
+
+  const shouldFetchTemplate = Boolean(templateId);
+  const templateSWRKey = shouldFetchTemplate
+    ? (["template", templateId] as const)
+    : null;
+    const { data: templateData, error, isLoading } = useSWR<{ template: TemplateRecord }>(
+      templateSWRKey,
+      templateFetcher
+    );
+  const { data: sops } = useSWR<SOP[]>('/api/sops', fetcher);
 
   const form = useForm<TemplateFormValues>({
     resolver: zodResolver(templateFormSchema),
     defaultValues: {
       title: "",
       description: "",
-      content: "",
+      fields: [],
+      relevantSopId: undefined,
     },
   });
 
-  // Load the template data when the component mounts
+  const { fields, append, remove, replace } = useFieldArray({
+    control: form.control,
+    name: "fields",
+  });
+
+  const selectedSopId = form.watch("relevantSopId");
+  const { data: selectedSop } = useSWR<SOP>(
+    selectedSopId && selectedSopId !== "none" ? `/api/sops/${selectedSopId}` : null,
+    fetcher
+  );
+
+  // Load the template data when it's fetched
   useEffect(() => {
-    const templateToEdit = mockTemplates.find((t) => t.id === templateId);
+    const templateToEdit = templateData?.template;
     if (templateToEdit) {
-      form.reset(templateToEdit);
-    } else {
+      form.reset({
+        title: templateToEdit.title,
+        description: templateToEdit.description,
+        fields: templateToEdit.fields || [],
+        relevantSopId: templateToEdit.relevantSopId || undefined,
+      });
+    }
+  }, [templateData, form]);
+
+  useEffect(() => {
+    if (!shouldFetchTemplate) {
+      return;
+    }
+    if (!isLoading && (error || !templateData?.template)) {
       toast({
         title: "Template not found",
         description: "The requested template could not be found.",
         variant: "destructive",
       });
-      router.push("/sops");
+      router.push("/sops?tab=templates");
     }
-  }, [templateId, form, router, toast]);
-
-
+  }, [shouldFetchTemplate, isLoading, error, templateData, toast, router]);
   // Handle form submission
   async function onSubmit(data: TemplateFormValues) {
     try {
@@ -81,6 +213,11 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
     }
   }
 
+  if (isLoading || !templateData?.template) {
+    return <MainLayout><div className="p-8 text-center text-muted-foreground">Loading template...</div></MainLayout>
+  }
+
+
   return (
     <MainLayout>
       <div className="space-y-4 mb-8">
@@ -99,9 +236,12 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <Card className="max-w-4xl mx-auto">
-            <CardHeader>
-              <CardTitle>Template Details</CardTitle>
-              <CardDescription>Update the title, description, and content of the template.</CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <CardTitle>Template Details</CardTitle>
+                <CardDescription>Update the title, description, and content of the template.</CardDescription>
+              </div>
+              <AddFieldDialog onAddField={(field) => append(field)} />
             </CardHeader>
             <CardContent className="space-y-6">
               <FormField
@@ -113,6 +253,49 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
                     <FormControl>
                       <Input placeholder="e.g., Budget Request Form" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="relevantSopId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Relevant SOP (Optional)</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an SOP to link this template to" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">No specific SOP</SelectItem>
+                          {sops?.map(sop => (
+                            <SelectItem key={sop.id} value={sop.id}>{sop.title}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedSop && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="shrink-0">
+                              <Workflow className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>SOP Preview: {selectedSop.title}</DialogTitle>
+                            </DialogHeader>
+                            <div className="max-h-[70vh] overflow-y-auto p-4">
+                              <SopTimeline steps={selectedSop.steps ?? []} />
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -136,31 +319,57 @@ export default function EditTemplateForm({ templateId }: EditTemplateFormProps) 
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="content"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Template Content</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter the main body of your document template here. You can use placeholders like {{variable_name}}."
-                        {...field}
-                        rows={10}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+              <div className="space-y-4">
+                {fields.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-6 border-2 border-dashed rounded-lg">
+                    <p>No fields added yet.</p>
+                    <p className="text-sm">Click "Add Field" to get started.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {fields.map((field, index) => (
+                      <div key={field.id} className="flex items-start gap-3">
+                        <FormItem className="flex-1">
+                          <FormLabel>{form.watch(`fields.${index}.label`)}</FormLabel>
+                          <FormControl>
+                            {form.watch(`fields.${index}.type`) === 'Checklist' ? (
+                              <div className="flex items-center space-x-2 h-10">
+                                <Checkbox disabled />
+                                <Label className="text-sm font-normal text-muted-foreground">
+                                  This is a "{form.watch(`fields.${index}.type`)}" field.
+                                </Label>
+                              </div>
+                            ) : (
+                              <Input
+                                readOnly
+                                disabled
+                                placeholder={`This is a "${form.watch(`fields.${index}.type`)}" field.`}
+                              />
+                            )}
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                        <Button type="button" variant="ghost" size="icon" className="mt-8 h-9 w-9" onClick={() => remove(index)}>
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              />
-              
-              <div className="flex justify-end pt-4">
-                <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? "Saving..." : "Update Template"}
-                </Button>
+                {form.formState.errors.fields && (
+                  <p className="text-sm font-medium text-destructive">
+                    {form.formState.errors.fields.message as string}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
+          
+          <div className="max-w-4xl mx-auto flex justify-end">
+            <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? "Saving..." : "Update Template"}
+            </Button>
+          </div>
         </form>
       </Form>
     </MainLayout>

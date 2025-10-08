@@ -170,6 +170,7 @@ export async function POST(req: Request) {
             approver: String(st?.approver ?? ""),
             ...(st?.nextStepYes ? { nextStepYes: String(st.nextStepYes) } : {}),
             ...(st?.nextStepNo ? { nextStepNo: String(st.nextStepNo) } : {}),
+            ...(st?.templateId ? { templateId: String(st.templateId) } : {}),
             status: "Draft",
             createdAt: Date.now(),
             updatedAt: Date.now(),
