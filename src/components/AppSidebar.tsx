@@ -33,6 +33,7 @@ import {
 const navLinks = [
   { href: "/", label: "Overview", icon: LayoutGrid },
   { href: "/sops", label: "SOPs Management", icon: ListChecks },
+  { href: "/create-sop/workflow-beta", label: "Create SOP Workflow (Beta)", icon: FilePlus2 },
   { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
   { href: "/admin", label: "Admin", icon: UserCog, roles: ["RegTechTeam"] },
 ];
@@ -49,8 +50,14 @@ export default function AppSidebar() {
     if (href === "/") return pathname === href;
     if (href === "/tasks")
       return pathname.startsWith(href) || pathname.startsWith("/projects");
+    if (href === "/create-sop/workflow-beta")
+      return pathname.startsWith("/create-sop/workflow-beta");
     if (href === "/sops")
-      return pathname.startsWith(href) || pathname.startsWith("/create-sop") || pathname.startsWith("/template-document");
+      return (
+        pathname.startsWith(href) ||
+        (pathname.startsWith("/create-sop") && !pathname.startsWith("/create-sop/workflow-beta")) ||
+        pathname.startsWith("/template-document")
+      );
     return pathname.startsWith(href);
   };
 
@@ -143,3 +150,4 @@ export default function AppSidebar() {
     </Sidebar>
   );
 }
+

@@ -74,12 +74,12 @@ function TaskCard({ taskId, task }: { taskId: string; task: Task }) {
       {...attributes}
       {...listeners}
       className={`rounded-xl border p-3 bg-white shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing
-      ${isDragging ? "opacity-80 ring-2 ring-blue-500" : ""}`}
+      ${isDragging ? "opacity-80 ring-2 ring-primary" : ""}`}
     >
       <div className="text-sm font-medium">{task.title}</div>
       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-        {task.owner && <span className="rounded bg-slate-100 px-2 py-0.5">{task.owner}</span>}
-        {task.due && <span className="rounded bg-blue-50 px-2 py-0.5">due {task.due}</span>}
+        {task.owner && <span className="rounded bg-muted px-2 py-0.5">{task.owner}</span>}
+        {task.due && <span className="rounded bg-primary/10 px-2 py-0.5">due {task.due}</span>}
       </div>
     </div>
   );
@@ -97,7 +97,7 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={`flex h-full min-h-80 w-full flex-col rounded-2xl border bg-card shadow-sm
-      ${isOver ? "ring-2 ring-blue-400/50" : ""}`}
+      ${isOver ? "ring-2 ring-primary/50" : ""}`}
     >
       {children}
     </div>

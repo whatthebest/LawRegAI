@@ -842,7 +842,7 @@ export default function ProjectDetailPage() {
                         <DialogTrigger asChild>
                           <Button
                             variant="ghost"
-                            className="w-full max-w-[640px] bg-muted text-foreground hover:bg-blue-50 hover:text-blue-700"
+                            className="w-full max-w-[640px] bg-muted text-foreground hover:bg-primary/10 hover:text-primary"
                           >
                             + Add Task
                           </Button>
@@ -873,7 +873,7 @@ export default function ProjectDetailPage() {
                     <DialogTrigger asChild>
                       <Button
                         variant="ghost"
-                        className="w-full bg-muted text-foreground hover:bg-blue-50 hover:text-blue-700"
+                        className="w-full bg-muted text-foreground hover:bg-primary/10 hover:text-primary"
                       >
                         + Add Task
                       </Button>
@@ -1197,3 +1197,4 @@ function EditTaskForm({ initial, projectId, onClose, onSaved }: {
     </form>
   );
 }
+
