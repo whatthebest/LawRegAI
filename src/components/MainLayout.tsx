@@ -30,7 +30,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <SidebarProvider>
         <AppSidebar />
-        <div className="flex flex-col w-full">
+        <div className="flex flex-col w-full min-h-screen">
             <Header />
             <SidebarInset>
                 <main className="flex-1 p-4 md:p-6 lg:p-8">

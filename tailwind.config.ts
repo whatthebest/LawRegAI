@@ -16,6 +16,9 @@ export default {
       },
     },
     extend: {
+      boxShadow: {
+        xs: '0 1px 0 0 rgba(15, 23, 42, 0.08)',
+      },
       fontFamily: {
         sans: ['Kanit', 'sans-serif'],
         code: ['monospace'],
