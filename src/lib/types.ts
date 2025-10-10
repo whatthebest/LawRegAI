@@ -43,6 +43,7 @@ export interface SOP {
   // These two are sometimes missing at creation → make optional
   responsiblePerson?: string;          // ← was required
   owner?: string;                      // keep optional if not always set
+  ownerEmail?: string;
 
   // Optional submitter for Manager Review tab fallback
   submittedBy?: string;                // ← ADD THIS
