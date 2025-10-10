@@ -24,7 +24,7 @@ export default function Header() {
               className="hidden md:flex items-center gap-2 font-bold text-lg"
             >
               <Bot className="h-6 w-6 text-primary" />
-              <span className="hidden sm:inline-block">Conpliance Standard Assurance</span>
+              <span className="hidden sm:inline-block">Compliance Standard Assurance</span>
             </Link>
           </nav>
         </div>

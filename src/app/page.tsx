@@ -277,63 +277,73 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-10">
-        <Card className="lg:col-span-2 border border-white/60 bg-white/90 shadow-xl backdrop-blur">
-          <CardHeader>
-            <CardTitle>My Projects</CardTitle>
-            <CardDescription>A list of your recent projects.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid md:grid-cols-2 gap-4">
+      <section className="relative mt-10 overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-white via-sky-50/60 to-indigo-50/30 p-6 shadow-[0_35px_70px_rgba(15,23,42,0.12)]">
+        <div className="pointer-events-none absolute -top-32 -left-24 h-72 w-72 rounded-full bg-sky-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 -right-24 h-80 w-80 rounded-full bg-indigo-200/35 blur-[140px]" />
+        <div className="relative grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <Card className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/85 shadow-2xl backdrop-blur-lg transition-shadow hover:shadow-[0_35px_70px_rgba(15,23,42,0.16)] lg:col-span-2">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-100/40 via-white/40 to-indigo-100/30" />
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-sky-400 via-blue-400 to-cyan-500" />
+            <CardHeader className="relative z-10 pb-6">
+              <CardTitle>My Projects</CardTitle>
+              <CardDescription>A list of your recent projects.</CardDescription>
+            </CardHeader>
+            <CardContent className="relative z-10 grid gap-4 md:grid-cols-2">
           {projects.slice(0, 4).map((project: any, index: number) => {
             const slug = project?.projectId || project?.id || project?.key || String(index);
             return (
-            <Card key={`${slug}-${index}`} className="border border-slate-200/70 bg-white/80 shadow-md backdrop-blur-sm transition-shadow hover:shadow-xl">
-              <CardHeader>
-                <CardTitle className="flex justify-between items-center text-lg">
+            <Card key={`${slug}-${index}`} className="relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white/80 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl">
+              <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-sky-300 via-blue-300 to-indigo-400" />
+              <CardHeader className="relative z-10 flex flex-col gap-1 pb-4">
+                <CardTitle className="flex items-center justify-between text-lg font-semibold text-slate-900">
                   {project.name}
-                  <Badge variant={project.status === 'Completed' ? 'default' : 'secondary'} className="rounded-full border-none bg-slate-900/10 text-slate-700 backdrop-blur" >
+                  <Badge variant={project.status === 'Completed' ? 'default' : 'secondary'} className="rounded-full border-none bg-slate-900/10 text-slate-700 backdrop-blur">
                     {project.status}
                   </Badge>
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm text-slate-500">
                   {sops.find((s: SOP) => s.id === project.sop)?.title}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground line-clamp-2 h-10">
+              <CardContent className="relative z-10">
+                <p className="text-sm text-muted-foreground line-clamp-3 min-h-[3.5rem]">
                   {project.description}
                 </p>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="relative z-10">
                 <Link href={`/projects/${slug}`} passHref>
-                  <Button variant="outline" size="sm" className="w-full rounded-full border-none bg-gradient-to-r from-sky-500/10 to-indigo-500/10 text-sky-700 hover:from-sky-500/20 hover:to-indigo-500/20">View Project</Button>
+                  <Button variant="outline" size="sm" className="w-full rounded-full border-none bg-gradient-to-r from-sky-500/15 to-indigo-500/15 text-sky-700 hover:from-sky-500/25 hover:to-indigo-500/25">
+                    View Project
+                  </Button>
                 </Link>
               </CardFooter>
             </Card>
           )})}
-          </CardContent>
-           <CardFooter>
+            </CardContent>
+            <CardFooter className="relative z-10 pt-4">
               <Link href="/tasks" passHref className="w-full">
                 <Button variant="ghost" className="w-full gap-2 rounded-full border border-transparent bg-white/70 text-slate-700 hover:bg-white">
                     View All Projects <ArrowRight className="w-4 h-4" />
                 </Button>
             </Link>
-           </CardFooter>
-        </Card>
+            </CardFooter>
+          </Card>
 
-        <Card className="border border-white/60 bg-white/90 shadow-xl backdrop-blur">
-            <CardHeader>
+          <Card className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/85 shadow-2xl backdrop-blur-lg transition-shadow hover:shadow-[0_35px_70px_rgba(88,28,135,0.2)]">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-fuchsia-100/40 via-white/35 to-sky-100/25" />
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-fuchsia-500 via-purple-400 to-sky-400" />
+            <CardHeader className="relative z-10 pb-4">
                 <CardTitle>My Action Items</CardTitle>
                 <CardDescription>SOP steps assigned to you for review or approval.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="relative z-10 space-y-5">
               <div>
-                <h4 className="text-sm font-semibold mb-2">To Review ({toReviewTasks.length})</h4>
+                <h4 className="text-sm font-semibold text-slate-800 mb-2">To Review ({toReviewTasks.length})</h4>
                  {toReviewTasks.length > 0 ? (
                   <div className="space-y-2">
                     {toReviewTasks.slice(0, 2).map((task: any) => (
                       <Link href={`/projects/${task.projectId}`} key={`${task.projectId}-${task.taskId}`} className="block">
-                        <div className="rounded-2xl border border-slate-200/60 bg-white/70 p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                        <div className="rounded-2xl border border-fuchsia-200/60 bg-white/80 p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
                             <p className="text-xs text-muted-foreground">{task.projectName}</p>
                             <p className="font-medium text-sm truncate">Step {task.stepOrder}: {task.title}</p>
                         </div>
@@ -345,12 +355,12 @@ export default function HomePage() {
                 )}
               </div>
                <div>
-                <h4 className="text-sm font-semibold mb-2">To Approve ({toApproveTasks.length})</h4>
+                <h4 className="text-sm font-semibold text-slate-800 mb-2">To Approve ({toApproveTasks.length})</h4>
                  {toApproveTasks.length > 0 ? (
                   <div className="space-y-2">
                     {toApproveTasks.slice(0, 2).map((task: any) => (
                       <Link href={`/projects/${task.projectId}`} key={`${task.projectId}-${task.taskId}`} className="block">
-                         <div className="rounded-2xl border border-slate-200/60 bg-white/70 p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                         <div className="rounded-2xl border border-sky-200/60 bg-white/80 p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
                            <p className="text-xs text-muted-foreground">{task.projectName}</p>
                            <p className="font-medium text-sm truncate">Step {task.stepOrder}: {task.title}</p>
                         </div>
@@ -362,15 +372,10 @@ export default function HomePage() {
                 )}
               </div>
             </CardContent>
-            <CardFooter>
-              {/* <Link href="/tasks" passHref className="w-full">
-                <Button variant="ghost" className="w-full gap-2 rounded-full border border-transparent bg-white/70 text-slate-700 hover:bg-white">
-                    Go to Work Tracker <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link> */}
-            </CardFooter>
+            <CardFooter className="relative z-10" />
         </Card>
-      </div>
+        </div>
+      </section>
 
     </MainLayout>
   );
