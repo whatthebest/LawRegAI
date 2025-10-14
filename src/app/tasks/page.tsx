@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState, useRef } from "react";
 import useSWR, { mutate } from "swr";
@@ -14,13 +14,17 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import type { SOP } from "@/lib/types";
+import type { LucideIcon } from "lucide-react";
 import {
+  BarChart3,
   Check,
+  CheckCircle2,
   Clock,
   PlusCircle,
   FolderKanban,
   Briefcase,
   Bug,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -63,10 +67,10 @@ const fetcher = (url: string) =>
     return r.json();
   });
 
-/** shape ที่ API /api/projects ส่งกลับ (สอดคล้องโค้ด route.ts ที่คุยไว้) */
+/** shape เธ—เธตเน API /api/projects เธชเนเธเธเธฅเธฑเธ (เธชเธญเธ”เธเธฅเนเธญเธเนเธเนเธ” route.ts เธ—เธตเนเธเธธเธขเนเธงเน) */
 type ProjectRow = {
   key?: string;
-  projectId: string; // เช่น project-001
+  projectId: string; // เน€เธเนเธ project-001
   projectIndex: number;
   name: string;
   description?: string;
@@ -96,10 +100,18 @@ type DbTask = {
   sopId?: string;
 };
 
+type ProjectStat = {
+  label: string;
+  value: string;
+  subtext: string;
+  accent: string;
+  icon: LucideIcon;
+};
+
 export default function TasksPage() {
   const { user } = useAuth();
 
-  // ---------- ดึงจาก Backend ----------
+  // ---------- เธ”เธถเธเธเธฒเธ Backend ----------
   const {
     data: projects,
     isLoading: loadingProjects,
@@ -116,11 +128,11 @@ export default function TasksPage() {
   const [selectedSop, setSelectedSop] = useState<SOP | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<{ projectId: string; name: string } | null>(null);
 
-  // sentinel non-empty สำหรับ Radix
+  // sentinel non-empty เธชเธณเธซเธฃเธฑเธ Radix
   const NONE = "__NONE__";
   const [sopValue, setSopValue] = useState<string | undefined>(undefined);
 
-  // กันเด้ง Warning ตอนกด Save
+  // เธเธฑเธเน€เธ”เนเธ Warning เธ•เธญเธเธเธ” Save
   const bypassCloseRef = useRef(false);
 
   const handleSopSelect = (val: string) => {
@@ -229,6 +241,60 @@ export default function TasksPage() {
   // Completed should only include final approval, not in-progress
   const completedTasks = tasks.filter((t) => t.status === "ApprovedFinal");
 
+  const totalProjects = projects?.length ?? 0;
+  const activeProjectCount = projects
+    ? projects.filter((p) => p.status === "Active").length
+    : 0;
+  const completedProjectCount = projects
+    ? projects.filter((p) => p.status === "Completed").length
+    : 0;
+  const onHoldProjectCount = projects
+    ? projects.filter((p) => p.status === "OnHold").length
+    : 0;
+  const myTaskCount = tasks.length;
+  const attentionCount = toReviewTasks.length + toApproveTasks.length;
+
+  const projectStats = useMemo<ProjectStat[]>(() => {
+    const nf = new Intl.NumberFormat();
+    return [
+      {
+        label: "Project Portfolio",
+        value: nf.format(totalProjects),
+        subtext: "Projects tracked across teams.",
+        accent: "from-sky-400 via-blue-400 to-indigo-500",
+        icon: FolderKanban,
+      },
+      {
+        label: "Active Projects",
+        value: nf.format(activeProjectCount),
+        subtext: `${nf.format(onHoldProjectCount)} on hold`,
+        accent: "from-emerald-400 via-teal-400 to-cyan-500",
+        icon: Briefcase,
+      },
+      {
+        label: "Completed Projects",
+        value: nf.format(completedProjectCount),
+        subtext: "Marked as finished by owners.",
+        accent: "from-violet-400 via-purple-400 to-fuchsia-500",
+        icon: CheckCircle2,
+      },
+      {
+        label: "My Assigned Tasks",
+        value: nf.format(myTaskCount),
+        subtext: `${nf.format(attentionCount)} need attention`,
+        accent: "from-amber-400 via-orange-400 to-rose-500",
+        icon: BarChart3,
+      },
+    ];
+  }, [
+    totalProjects,
+    activeProjectCount,
+    onHoldProjectCount,
+    completedProjectCount,
+    myTaskCount,
+    attentionCount,
+  ]);
+
   // ----- Display helpers -----
   const displayStatus = (status?: string) => {
     switch (status) {
@@ -258,24 +324,41 @@ export default function TasksPage() {
         {tasks.map((task) => (
           <Card
             key={`${task.projectId}-${task.taskId}`}
-            className="shadow-sm hover:shadow-md transition-shadow"
+            className="relative overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-md backdrop-blur transition hover:-translate-y-0.5 hover:shadow-2xl"
           >
-            <CardContent className="p-4 flex items-start justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-muted-foreground">
-                  Project: {task.projectName}
-                </p>
-                <p className="font-semibold break-words">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-sky-400 via-blue-400 to-indigo-400" />
+            <CardContent className="relative z-10 flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  <span>Project</span>
+                  <span className="h-1 w-1 rounded-full bg-slate-300" />
+                  <span className="truncate">{task.projectName}</span>
+                </div>
+                <p className="break-words text-lg font-semibold text-slate-900">
                   Step {task.stepOrder}: {task.title}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  Status: {displayStatus(task.status)}
-                </p>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                  <Badge className="rounded-full border-none bg-sky-500/10 text-sky-700 backdrop-blur">
+                    {displayStatus(task.status)}
+                  </Badge>
+                  {task.sopId && (
+                    <span className="text-xs text-slate-400">
+                      SOP: {task.sopId}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="flex-shrink-0">
-                <Link href={`/projects/${task.projectId}`} passHref>
-                  <Button variant="outline">View Project</Button>
-                </Link>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full border-none bg-gradient-to-r from-sky-500/15 to-indigo-500/15 px-5 text-sky-700 hover:from-sky-500/25 hover:to-indigo-500/25"
+                  asChild
+                >
+                  <Link href={`/projects/${task.projectId}`}>
+                    View Project
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -288,7 +371,7 @@ export default function TasksPage() {
   if (loadingProjects || loadingSops || loadingProjectTasks) {
     return (
       <MainLayout>
-        <div className="p-8 text-muted-foreground">Loading projects & tasks…</div>
+        <div className="p-8 text-muted-foreground">Loading projects & tasks</div>
       </MainLayout>
     );
   }
@@ -323,7 +406,7 @@ export default function TasksPage() {
       undefined;
 
     if (!name) {
-      // แจ้งเตือนแบบง่าย ๆ (ถ้าอยากใช้ toast ก็เสียบได้)
+      // เนเธเนเธเน€เธ•เธทเธญเธเนเธเธเธเนเธฒเธข เน (เธ–เนเธฒเธญเธขเธฒเธเนเธเน toast เธเนเน€เธชเธตเธขเธเนเธ”เน)
       alert("Project name is required");
       return;
     }
@@ -346,116 +429,334 @@ export default function TasksPage() {
 
   return (
     <MainLayout>
-      <div className="flex justify-between items-start gap-4 mb-8 flex-wrap">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold text-primary">Project Tracker</h1>
-          <p className="text-lg text-muted-foreground">
-            Create and manage your projects, and track your assigned SOP tasks.
-          </p>
-        </div>
-
-        {/* Form Dialog */}
-        <Dialog open={isCreateWorkOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <PlusCircle className="w-4 h-4" /> Create Project
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent className="sm:max-w-[900px] max-h-none overflow-visible no-scrollbar">
-            <DialogHeader>
-              <DialogTitle>Create New Project Item</DialogTitle>
-              <DialogDescription>
-                Define a new Project item and link it to an existing SOP for
-                guidance.
-              </DialogDescription>
-            </DialogHeader>
-
-            {/* 2 columns: left form / right guideline */}
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* Left: form */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="work-name" className="text-right">
-                    Project Name
-                  </Label>
-                  <Input
-                    id="work-name"
-                    placeholder="e.g., Q3 Marketing Campaign"
-                    className="col-span-3"
-                  />
+      <div className="space-y-10">
+        <section className="relative overflow-hidden rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-white to-indigo-100 p-8 shadow-2xl">
+          <div className="pointer-events-none absolute -top-24 -left-28 h-72 w-72 rounded-full bg-sky-200/50 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-32 -right-28 h-80 w-80 rounded-full bg-purple-200/40 blur-[140px]" />
+          <div className="relative flex flex-col gap-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.28em] text-slate-500 backdrop-blur">
+                  Project Hub
                 </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="work-detail" className="text-right">
-                    Project Detail
-                  </Label>
-                  <Textarea
-                    id="work-detail"
-                    placeholder="Describe the goals and context of this work."
-                    className="col-span-3 min-h-28"
-                  />
-                </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="start-date" className="text-right">
-                    Start Date
-                  </Label>
-                  <Input id="start-date" type="date" className="col-span-3" />
-                </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="sop-select" className="text-right">
-                    Relevant SOP{" "}
-                    <span className="text-muted-foreground">(optional)</span>
-                  </Label>
-                  <Select value={sopValue} onValueChange={handleSopSelect}>
-                    <SelectTrigger id="sop-select" className="col-span-3">
-                      <SelectValue placeholder="Select a relevant SOP (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>- NONE -</SelectItem>
-                      {(sops ?? []).map((sop) => (
-                        <SelectItem key={sop.id} value={sop.id}>
-                          {sop.title} ({sop.id})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <Button onClick={handleSaveProject}>Save</Button>
-                </div>
+                <h1 className="text-4xl font-bold text-slate-900">Project Tracker</h1>
+                <p className="max-w-2xl text-base text-slate-600">
+                  Create and manage your projects, align them to SOPs, and keep an eye on every action item in one place.
+                </p>
               </div>
-
-              {/* Right: guideline (render เฉพาะตอนมี SOP) */}
-              {(selectedSop || selectedSopFull) && (
-                <div className="hidden md:block">
-                  <div className="h-full flex flex-col">
-                    <h4 className="font-semibold text-lg">
-                      SOP Guideline: {(selectedSopFull ?? selectedSop)?.title}
-                    </h4>
-                    <Separator className="my-3" />
-                    <div className="pr-3 overflow-visible">
-                      <SopTimeline steps={(selectedSopFull ?? selectedSop)?.steps ?? []} />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="w-full gap-2 rounded-full border border-transparent bg-white/80 px-5 text-slate-700 shadow-sm transition hover:bg-white sm:w-auto"
+                >
+                  <Link href="/sops" className="flex items-center justify-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Browse SOP Library
+                  </Link>
+                </Button>
+                <Dialog open={isCreateWorkOpen} onOpenChange={handleDialogChange}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full gap-2 rounded-full bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500 px-6 py-5 text-sm font-semibold text-white shadow-lg transition hover:from-sky-500/90 hover:via-blue-500/90 hover:to-indigo-500/90 sm:w-auto">
+                      <PlusCircle className="h-4 w-4" />
+                      Create Project
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[900px] max-h-none overflow-visible rounded-3xl border border-white/70 bg-white/90 shadow-xl backdrop-blur no-scrollbar">
+                    <DialogHeader>
+                      <DialogTitle>Create New Project</DialogTitle>
+                      <DialogDescription>
+                        Define a new project and link it to an existing SOP for guidance.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="work-name" className="text-right">
+                            Project Name
+                          </Label>
+                          <Input
+                            id="work-name"
+                            placeholder="e.g., Q3 Marketing Campaign"
+                            className="col-span-3"
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="work-detail" className="text-right">
+                            Project Detail
+                          </Label>
+                          <Textarea
+                            id="work-detail"
+                            placeholder="Describe the goals and context of this work."
+                            className="col-span-3 min-h-28"
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="start-date" className="text-right">
+                            Start Date
+                          </Label>
+                          <Input id="start-date" type="date" className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="sop-select" className="text-right">
+                            Relevant SOP{" "}
+                            <span className="text-muted-foreground">(optional)</span>
+                          </Label>
+                          <Select value={sopValue} onValueChange={handleSopSelect}>
+                            <SelectTrigger id="sop-select" className="col-span-3">
+                              <SelectValue placeholder="Select a relevant SOP (optional)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={NONE}>- NONE -</SelectItem>
+                              {(sops ?? []).map((sop) => (
+                                <SelectItem key={sop.id} value={sop.id}>
+                                  {sop.title} ({sop.id})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex justify-end pt-2">
+                          <Button onClick={handleSaveProject} className="rounded-full px-6">
+                            Save Project
+                          </Button>
+                        </div>
+                      </div>
+                      {(selectedSop || selectedSopFull) && (
+                        <div className="hidden md:block">
+                          <div className="flex h-full flex-col rounded-2xl border border-slate-100/60 bg-white/80 p-4 shadow-inner">
+                            <h4 className="text-lg font-semibold text-slate-800">
+                              SOP Guideline: {(selectedSopFull ?? selectedSop)?.title}
+                            </h4>
+                            <Separator className="my-3" />
+                            <div className="pr-3">
+                              <SopTimeline steps={(selectedSopFull ?? selectedSop)?.steps ?? []} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {projectStats.map((stat) => {
+                const StatIcon = stat.icon;
+                return (
+                  <div
+                    key={stat.label}
+                    className="group relative overflow-hidden rounded-2xl border border-white/70 bg-white/80 p-6 shadow-lg backdrop-blur transition-transform duration-200 hover:-translate-y-1 hover:shadow-2xl"
+                  >
+                    <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${stat.accent}`} />
+                    <div className="relative flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.28em] text-slate-500">{stat.label}</p>
+                        <div className="mt-3 text-2xl font-semibold text-slate-900">{stat.value}</div>
+                        <p className="mt-1 text-xs text-slate-500">{stat.subtext}</p>
+                      </div>
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-white to-slate-100 text-slate-700 shadow-inner transition group-hover:scale-105">
+                        <StatIcon className="h-5 w-5" />
+                      </span>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })}
             </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </section>
+
+        <section className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-white via-sky-50/60 to-indigo-50/30 p-6 shadow-[0_35px_70px_rgba(15,23,42,0.12)]">
+          <div className="pointer-events-none absolute -top-32 -left-24 h-72 w-72 rounded-full bg-sky-200/40 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 -right-24 h-80 w-80 rounded-full bg-indigo-200/35 blur-[140px]" />
+          <div className="relative space-y-6">
+            <Tabs defaultValue="projects" className="w-full space-y-6">
+              <TabsList className="grid w-full gap-2 rounded-2xl border border-white/70 bg-white/80 p-1 backdrop-blur md:grid-cols-3">
+                <TabsTrigger
+                  value="projects"
+                  className="gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500/15 data-[state=active]:to-indigo-500/15 data-[state=active]:text-slate-900 data-[state=active]:shadow"
+                >
+                  <FolderKanban className="h-4 w-4" />
+                  Project List
+                </TabsTrigger>
+                <TabsTrigger
+                  value="tasks"
+                  className="gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500/15 data-[state=active]:to-teal-500/15 data-[state=active]:text-slate-900 data-[state=active]:shadow"
+                >
+                  <Briefcase className="h-4 w-4" />
+                  My Tasks
+                </TabsTrigger>
+                <TabsTrigger
+                  value="Kanban"
+                  className="gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/15 data-[state=active]:to-orange-500/15 data-[state=active]:text-slate-900 data-[state=active]:shadow"
+                >
+                  <Bug className="h-4 w-4" />
+                  Kanban
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="projects">
+                <Card className="rounded-3xl border border-white/70 bg-white/90 shadow-xl backdrop-blur">
+                  <CardHeader className="flex flex-col gap-2">
+                    <CardTitle>Project List</CardTitle>
+                    <CardDescription>
+                      All the work items and projects you have created.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                    {(projects ?? []).length > 0 ? (
+                      (projects ?? []).map((project) => {
+                        const slug =
+                          (project as any)?.projectId ||
+                          (project as any)?.id ||
+                          (project as any)?.key ||
+                          "";
+                        if (!slug) return null;
+                        return (
+                          <Card
+                            key={slug}
+                            className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-100/80 bg-white/90 shadow-lg backdrop-blur transition hover:-translate-y-0.5 hover:shadow-2xl"
+                          >
+                            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-sky-300 via-blue-300 to-indigo-400" />
+                            <CardHeader className="relative z-10 pb-4">
+                              <CardTitle className="flex items-center justify-between gap-3 text-lg font-semibold text-slate-900">
+                                <span className="truncate">{project.name}</span>
+                                <Badge className="rounded-full border-none bg-slate-900/10 text-slate-700 backdrop-blur">
+                                  {project.status}
+                                </Badge>
+                              </CardTitle>
+                              <CardDescription className="text-sm text-slate-500">
+                                Relevant SOP:{" "}
+                                {(sops ?? []).find((s) => s.id === project.sop)?.title ?? "—"}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="relative z-10 mt-auto space-y-4">
+                              <p className="text-sm text-muted-foreground line-clamp-3 min-h-[3.5rem]">
+                                {project.description?.trim()
+                                  ? project.description
+                                  : "No description provided."}
+                              </p>
+                              <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+                                <div>
+                                  <span className="font-medium text-slate-600">Created:</span>{" "}
+                                  {project.startDate ?? "—"}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-full border-none bg-gradient-to-r from-sky-500/15 to-indigo-500/15 px-4 text-sky-700 hover:from-sky-500/25 hover:to-indigo-500/25"
+                                    asChild
+                                  >
+                                    <Link href={`/projects/${slug}`}>
+                                      View Details
+                                    </Link>
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Delete project"
+                                    className="rounded-full bg-red-500/10 text-red-500 transition hover:bg-red-500/20"
+                                    onClick={() =>
+                                      setProjectToDelete({ projectId: String(slug), name: project.name })
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    ) : (
+                      <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200/70 bg-white/70 py-16 text-center text-slate-500">
+                        <p className="text-lg font-semibold text-slate-600">No projects yet</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Create your first project to start tracking progress.
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="tasks">
+                <Card className="rounded-3xl border border-white/70 bg-white/90 shadow-xl backdrop-blur">
+                  <CardHeader className="flex flex-col gap-2">
+                    <CardTitle>My Action Items</CardTitle>
+                    <CardDescription>
+                      Steps assigned to you across all active projects.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Tabs defaultValue="review" className="w-full space-y-6">
+                      <TabsList className="grid w-full gap-2 rounded-2xl border border-slate-100/80 bg-white/80 p-1 backdrop-blur sm:grid-cols-2 lg:grid-cols-4">
+                        <TabsTrigger
+                          value="onprocess"
+                          className="gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500/15 data-[state=active]:to-indigo-500/15 data-[state=active]:text-slate-900 data-[state=active]:shadow"
+                        >
+                          <Briefcase className="h-4 w-4" />
+                          On-Process ({onProcessTasks.length})
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="review"
+                          className="gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500/15 data-[state=active]:to-teal-500/15 data-[state=active]:text-slate-900 data-[state=active]:shadow"
+                        >
+                          <Clock className="h-4 w-4" />
+                          To Review ({toReviewTasks.length})
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="approve"
+                          className="gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/15 data-[state=active]:to-orange-500/15 data-[state=active]:text-slate-900 data-[state=active]:shadow"
+                        >
+                          <Check className="h-4 w-4" />
+                          To Approve ({toApproveTasks.length})
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="completed"
+                          className="gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500/15 data-[state=active]:to-fuchsia-500/15 data-[state=active]:text-slate-900 data-[state=active]:shadow"
+                        >
+                          <Check className="h-4 w-4" />
+                          Completed ({completedTasks.length})
+                        </TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="onprocess">
+                        <TaskList tasks={onProcessTasks} emptyMessage="No in-progress tasks." />
+                      </TabsContent>
+                      <TabsContent value="review">
+                        <TaskList tasks={toReviewTasks} emptyMessage="You have no steps to review." />
+                      </TabsContent>
+                      <TabsContent value="approve">
+                        <TaskList tasks={toApproveTasks} emptyMessage="You have no steps to approve." />
+                      </TabsContent>
+                      <TabsContent value="completed">
+                        <TaskList tasks={completedTasks} emptyMessage="You have not completed any steps yet." />
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="Kanban">
+                <Card className="rounded-3xl border border-white/70 bg-white/90 shadow-xl backdrop-blur">
+                  <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center text-muted-foreground">
+                    <Bug className="h-6 w-6 text-slate-400" />
+                    <p>Kanban view coming soon.</p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </section>
       </div>
 
-      {/* Warning Dialog (ยืนยันก่อนปิด) */}
       <Dialog open={confirmClose} onOpenChange={setConfirmClose}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px] rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur">
           <DialogHeader>
             <DialogTitle>Discard changes?</DialogTitle>
             <DialogDescription>
-              You are about to close this form. Any unsaved changes will be
-              lost. Do you really want to close?
+              You are about to close this form. Any unsaved changes will be lost. Do you really want to close?
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 pt-4">
@@ -469,130 +770,13 @@ export default function TasksPage() {
         </DialogContent>
       </Dialog>
 
-      <Tabs defaultValue="projects" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="projects" className="gap-2">
-            <FolderKanban className="w-4 h-4" /> Project List
-          </TabsTrigger>
-          <TabsTrigger value="tasks" className="gap-2">
-            <Briefcase className="w-4 h-4" /> My Tasks
-          </TabsTrigger>
-          <TabsTrigger value="Kanban" className="gap-2">
-            <Bug className="w-4 h-4" /> Kanban
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ----- Projects Tab ----- */}
-        <TabsContent value="projects">
-          <Card>
-            <CardHeader>
-              <CardTitle>Project List</CardTitle>
-              <CardDescription>
-                All the work items and projects you have created.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(projects ?? []).map((project) => {
-                const slug = (project as any)?.projectId || (project as any)?.id || (project as any)?.key || "";
-                return (
-                <Card key={slug} className="flex flex-col">
-                  <CardHeader>
-                    <CardTitle className="flex justify-between items-center text-xl">
-                      {project.name}
-                      <Badge
-                        variant={
-                          project.status === "Completed" ? "default" : "secondary"
-                        }
-                      >
-                        {project.status}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>
-                      Relevant SOP:{" "}
-                      {(sops ?? []).find((s) => s.id === project.sop)?.title ??
-                        "—"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="mt-auto">
-                    <p className="text-sm text-muted-foreground">
-                      {project.description}
-                    </p>
-                    <div className="flex items-center justify-between pt-4">
-                      {/* ใช้ projectId จาก API */}
-                      <Link href={`/projects/${slug}`} passHref>
-                        <Button variant="link" className="px-0">
-                          View Project Details &rarr;
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label="Delete project"
-                        className="text-muted-foreground hover:text-red-600 hover:bg-red-50"
-                        onClick={() => setProjectToDelete({ projectId: String(slug), name: project.name })}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )})}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ----- My Tasks Tab ----- */}
-        <TabsContent value="tasks">
-          <Tabs defaultValue="review" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="onprocess" className="gap-2">
-                <Briefcase className="w-4 h-4" /> On-Process ({onProcessTasks.length})
-              </TabsTrigger>
-              <TabsTrigger value="review" className="gap-2">
-                <Clock className="w-4 h-4" /> To Review ({toReviewTasks.length})
-              </TabsTrigger>
-              <TabsTrigger value="approve" className="gap-2">
-                <Check className="w-4 h-4" /> To Approve ({toApproveTasks.length})
-              </TabsTrigger>
-              <TabsTrigger value="completed" className="gap-2">
-                <Check className="w-4 h-4" /> Completed ({completedTasks.length})
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="onprocess">
-              <TaskList
-                tasks={onProcessTasks}
-                emptyMessage="No in-progress tasks."
-              />
-            </TabsContent>
-            <TabsContent value="review">
-              <TaskList
-                tasks={toReviewTasks}
-                emptyMessage="You have no steps to review."
-              />
-            </TabsContent>
-            <TabsContent value="approve">
-              <TaskList
-                tasks={toApproveTasks}
-                emptyMessage="You have no steps to approve."
-              />
-            </TabsContent>
-            <TabsContent value="completed">
-              <TaskList
-                tasks={completedTasks}
-                emptyMessage="You have not completed any steps yet."
-              />
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
-
-        {/* <TabsContent value="Kanban">
-          <TimelineDndBoard />
-        </TabsContent> */}
-      </Tabs>
-
-      {/* Delete Project Confirm */}
-      <AlertDialog open={!!projectToDelete} onOpenChange={(o) => { if (!o) setProjectToDelete(null); }}>
-        <AlertDialogContent>
+      <AlertDialog
+        open={!!projectToDelete}
+        onOpenChange={(open) => {
+          if (!open) setProjectToDelete(null);
+        }}
+      >
+        <AlertDialogContent className="rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this project?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -604,8 +788,11 @@ export default function TasksPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteProject}>
+            <AlertDialogCancel className="rounded-full px-6">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-full bg-destructive px-6 text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteProject}
+            >
               Delete Project
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -614,3 +801,4 @@ export default function TasksPage() {
     </MainLayout>
   );
 }
+

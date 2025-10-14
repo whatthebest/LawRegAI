@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Bot, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { InteractiveHoverButton } from "@/components/magicui/interactive-hover-button";
+import { auth } from "@/lib/firebase-client";
 
 export default function LoginPage() {
   const { user, login, isLoading, error } = useAuth();
@@ -21,9 +22,44 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
+  const sessionSyncAttempted = useRef(false);
+
   useEffect(() => {
-    if (!isLoading && user) router.replace(next);
-  }, [user, isLoading, router, next]);
+    if (isLoading || !user) return;
+    if (sessionSyncAttempted.current) {
+      return;
+    }
+    sessionSyncAttempted.current = true;
+    let cancelled = false;
+
+    const syncAndRedirect = async () => {
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const idToken = await currentUser.getIdToken(true);
+          await fetch("/api/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idToken }),
+          });
+        }
+      } catch (err) {
+        console.error("Failed to refresh server session", err);
+        sessionSyncAttempted.current = false;
+      } finally {
+        if (!cancelled) {
+          router.replace(next);
+          router.refresh();
+        }
+      }
+    };
+
+    syncAndRedirect();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, user, next, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +86,11 @@ export default function LoginPage() {
   }
 
   if (user) {
-    return <div className="h-screen w-screen bg-background" />;
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
