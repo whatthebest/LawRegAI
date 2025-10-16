@@ -33,6 +33,7 @@ import {
 const navLinks = [
   { href: "/", label: "Overview", icon: LayoutGrid },
   { href: "/sops", label: "SOPs Management", icon: ListChecks },
+  { href: "/summary-bot", label: "Summary file BOT (Beta)", icon: FileText },
   { href: "/create-sop/workflow-beta", label: "Create SOP Workflow (Beta)", icon: FilePlus2 },
   { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
   { href: "/admin", label: "Admin", icon: UserCog, roles: ["RegTechTeam"] },
