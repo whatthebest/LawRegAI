@@ -16,6 +16,25 @@ type SummaryRow = {
   value: string;
 };
 
+type BotDocumentRow = {
+  title: string;
+  documentType: string;
+  rawDate: string;
+  effectiveDate: string | null;
+  status?: string;
+  flag?: string;
+  pdfUrl?: string;
+  detailUrl?: string;
+};
+
+type ScrapePayload = {
+  success: boolean;
+  documents?: BotDocumentRow[];
+  fetchedAt?: string;
+  rawCount?: number;
+  error?: string;
+};
+
 type SummaryResponse = {
   success: boolean;
   data?: Record<string, unknown>;
@@ -44,6 +63,10 @@ export default function SummaryBotPage() {
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [lastRunId, setLastRunId] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState(DEFAULT_PDF_URL);
+  const [scrapeDocs, setScrapeDocs] = useState<BotDocumentRow[]>([]);
+  const [scrapeMeta, setScrapeMeta] = useState<{ fetchedAt?: string; rawCount?: number } | null>(null);
+  const [scrapeError, setScrapeError] = useState<string | null>(null);
+  const [isScraping, setIsScraping] = useState(false);
 
   const handleSummarize = async () => {
     setIsLoading(true);
@@ -121,6 +144,53 @@ export default function SummaryBotPage() {
   };
 
   const hasResults = useMemo(() => rows.length > 0, [rows]);
+  const hasScrapeResults = useMemo(() => scrapeDocs.length > 0, [scrapeDocs]);
+
+  const formatDocumentDate = (doc: BotDocumentRow) => {
+    if (doc.effectiveDate) {
+      try {
+        return new Date(doc.effectiveDate).toLocaleDateString("th-TH", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      } catch {
+        // fall back
+      }
+    }
+    return doc.rawDate || "-";
+  };
+
+  const handleScrapeOnly = async () => {
+    setIsScraping(true);
+    setScrapeError(null);
+
+    try {
+      const response = await fetch("/api/bot-scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const payload: ScrapePayload = await response.json();
+
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || "Failed to fetch BOT regulations.");
+      }
+
+      if (payload.documents) {
+        setScrapeDocs(payload.documents);
+        setScrapeMeta({
+          fetchedAt: payload.fetchedAt,
+          rawCount: payload.rawCount,
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown scraping error.";
+      setScrapeError(message);
+    } finally {
+      setIsScraping(false);
+    }
+  };
 
   return (
     <MainLayout>
@@ -250,6 +320,147 @@ export default function SummaryBotPage() {
             </CardContent>
           </Card>
         </section>
+
+        <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
+          <CardHeader>
+            <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle>Latest BOT Regulations Snapshot</CardTitle>
+                <CardDescription>
+                  Most recent circulars published by the Bank of Thailand (IssueBy: ธนาคารพาณิชย์จดทะเบียนในประเทศ, status: ใช้อยู่).
+                </CardDescription>
+              </div>
+              {scrapeMeta?.fetchedAt && (
+                <div className="text-xs text-muted-foreground md:text-right">
+                  <p>
+                    Updated {new Date(scrapeMeta.fetchedAt).toLocaleString()}
+                    {typeof scrapeMeta.rawCount === "number" && scrapeMeta.rawCount > 0
+                      ? ` • Showing ${scrapeDocs.length} of ${scrapeMeta.rawCount}`
+                      : ""}
+                  </p>
+                </div>
+              )}
+              <div className="mt-3 flex items-center gap-2 md:mt-0">
+                <Button
+                  variant="outline"
+                  onClick={handleScrapeOnly}
+                  disabled={isLoading || isScraping}
+                  className="gap-2"
+                >
+                  {isScraping ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Refresh Listings
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCcw className="h-4 w-4" />
+                      Refresh Listings
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {isScraping && !hasScrapeResults && (
+              <div className="flex h-48 flex-col items-center justify-center gap-3 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <span>Refreshing BOT listings…</span>
+              </div>
+            )}
+
+            {scrapeError && (
+              <Alert variant="destructive">
+                <AlertTitle>Scraping failed</AlertTitle>
+                <AlertDescription>{scrapeError}</AlertDescription>
+              </Alert>
+            )}
+
+            {!isScraping && !scrapeError && !hasScrapeResults && (
+              <div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
+                <span className="font-medium text-foreground">No listings captured yet</span>
+                <p className="text-center text-sm">
+                  Run the automation to pull the latest BOT regulations and quick links.
+                </p>
+              </div>
+            )}
+
+            {!scrapeError && hasScrapeResults && (
+              <div className="rounded-xl border bg-background/70 backdrop-blur">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[120px]">ประเภท</TableHead>
+                      <TableHead className="w-[120px]">วันที่ประกาศ</TableHead>
+                      <TableHead>เรื่อง</TableHead>
+                      <TableHead className="w-[160px]">สถานะ</TableHead>
+                      <TableHead className="w-[120px] text-right">เอกสาร</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {scrapeDocs.map((doc, index) => (
+                      <TableRow key={`${doc.title}-${doc.pdfUrl ?? index}`}>
+                        <TableCell className="whitespace-pre-wrap break-words text-sm font-medium">
+                          {doc.documentType || "-"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatDocumentDate(doc)}
+                        </TableCell>
+                        <TableCell className="space-y-1">
+                          <p
+                            className="font-medium truncate"
+                            title={doc.title}
+                            style={{ maxWidth: "38rem" }}
+                          >
+                            {doc.title.length > 120 ? `${doc.title.slice(0, 120)}…` : doc.title}
+                          </p>
+                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            {doc.detailUrl && (
+                              <a
+                                href={doc.detailUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="hover:text-primary"
+                              >
+                                รายละเอียด
+                              </a>
+                            )}
+                            {doc.flag && (
+                              <Badge
+                                variant="secondary"
+                                className="bg-amber-100 px-2 py-[2px] text-[11px] font-medium text-amber-700"
+                              >
+                                {doc.flag}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {doc.status || "-"}
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-medium">
+                          {doc.pdfUrl ? (
+                            <a
+                              href={doc.pdfUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              เปิดไฟล์
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </MainLayout>
   );

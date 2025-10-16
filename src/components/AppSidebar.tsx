@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeProvider";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Sidebar,
   SidebarContent,
@@ -14,6 +15,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuBadge,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,6 +30,11 @@ import {
   CheckSquare,
   UserCog,
   FileText,
+  FolderKanban,
+  BookOpen,
+  Cpu,
+  Shield,
+  ScrollText,
 } from "lucide-react";
 
 const navLinks = [
@@ -36,6 +43,11 @@ const navLinks = [
   { href: "/summary-bot", label: "Summary file BOT (Beta)", icon: FileText },
   { href: "/create-sop/workflow-beta", label: "Create SOP Workflow (Beta)", icon: FilePlus2 },
   { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
+  { href: "/document-management", label: "Document Management", icon: FolderKanban, comingSoon: true },
+  { href: "/policy-procedure", label: "Policy and Procedure", icon: ScrollText, comingSoon: true },
+  { href: "/knowledge-base", label: "Knowledge Base Management", icon: BookOpen, comingSoon: true },
+  { href: "/regtech-studio", label: "RegTech Studio", icon: Cpu, comingSoon: true },
+  { href: "/compliance-risk-hub", label: "Compliance Risk Management Hub", icon: Shield, comingSoon: true },
   { href: "/admin", label: "Admin", icon: UserCog, roles: ["RegTechTeam"] },
 ];
 
@@ -76,32 +88,46 @@ export default function AppSidebar() {
 
       <SidebarContent>
         <SidebarMenu>
-        {navLinks
-                .filter(link => {
-                  if (!link.roles) return true;
-                  const norm = (s: string | undefined) => (s ?? "").toLowerCase().replace(/[^a-z]/g, "");
-                  const userRole = norm(user?.systemRole as string);
-                  // accept e.g. "regtech team", "RegTech-Team", etc.
-                  return link.roles.some(r => norm(r) === userRole);
-                })
-          .map(link => (
-            <SidebarMenuItem key={link.href}>
-              {/* IMPORTANT: asChild + exactly ONE child element */}
-              <SidebarMenuButton
-                asChild
-                isActive={isLinkActive(link.href)}
-                tooltip={link.label}
-              >
-                <Link href={link.href}>
-                  {/* Wrap icon + text into ONE element so Slot sees a single child */}
-                  <span className="inline-flex items-center gap-2">
-                    <link.icon className="h-4 w-4" />
-                    <span>{link.label}</span>
-                  </span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {navLinks
+            .filter((link) => {
+              if (!link.roles) return true;
+              const norm = (s: string | undefined) => (s ?? "").toLowerCase().replace(/[^a-z]/g, "");
+              const userRole = norm(user?.systemRole as string);
+              return link.roles.some((r) => norm(r) === userRole);
+            })
+            .map((link) => (
+              <SidebarMenuItem key={link.href}>
+                {link.comingSoon ? (
+                  <SidebarMenuButton className="justify-between" disabled>
+                    <span className="inline-flex items-center gap-2">
+                      <link.icon className="h-4 w-4" />
+                      {link.label}
+                    </span>
+                    <SidebarMenuBadge>
+                      <Badge
+                        variant="outline"
+                        className="border-destructive/40 bg-destructive/10 text-destructive px-2 py-[2px] text-[8px] leading-none translate-y-2.5"
+                      >
+                        Coming Soon
+                      </Badge>
+                    </SidebarMenuBadge>
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isLinkActive(link.href)}
+                    tooltip={link.label}
+                  >
+                    <Link href={link.href}>
+                      <span className="inline-flex items-center gap-2">
+                        <link.icon className="h-4 w-4" />
+                        <span>{link.label}</span>
+                      </span>
+                    </Link>
+                  </SidebarMenuButton>
+                )}
+              </SidebarMenuItem>
+            ))}
         </SidebarMenu>
       </SidebarContent>
 

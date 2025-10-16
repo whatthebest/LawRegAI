@@ -105,8 +105,18 @@ export async function POST(request: Request) {
   }
 
   if (result.code !== 0) {
-    return NextResponse.json(payload, { status: 500 });
+    return NextResponse.json(
+      typeof payload === "object" && payload !== null ? payload : { success: false },
+      { status: 500 },
+    );
   }
 
-  return NextResponse.json(payload);
+  if (typeof payload === "object" && payload !== null) {
+    return NextResponse.json(payload);
+  }
+
+  return NextResponse.json({
+    success: true,
+    result: payload,
+  });
 }
