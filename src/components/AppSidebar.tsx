@@ -23,7 +23,6 @@ import {
   Moon,
   Sun,
   LogOut,
-  Bot,
   LayoutGrid,
   FilePlus2,
   ListChecks,
@@ -35,7 +34,10 @@ import {
   Cpu,
   Shield,
   ScrollText,
+  Grid3x3,
+  Zap,
 } from "lucide-react";
+import { BrandMark } from "./BrandMark";
 
 const navLinks = [
   { href: "/", label: "Overview", icon: LayoutGrid },
@@ -43,6 +45,7 @@ const navLinks = [
   { href: "/summary-bot", label: "Summary file BOT (Beta)", icon: FileText },
   { href: "/create-sop/workflow-beta", label: "Create SOP Workflow (Beta)", icon: FilePlus2 },
   { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
+  { href: "/integrated-hub", label: "Integrated Hub", icon: Grid3x3 },
   { href: "/document-management", label: "Document Management", icon: FolderKanban, comingSoon: true },
   { href: "/policy-procedure", label: "Policy and Procedure", icon: ScrollText, comingSoon: true },
   { href: "/knowledge-base", label: "Knowledge Base Management", icon: BookOpen, comingSoon: true },
@@ -79,10 +82,12 @@ export default function AppSidebar() {
       <SidebarHeader>
         <Link
           href="/"
-          className="flex items-center gap-2 font-bold text-lg group-data-[collapsible=icon]:hidden"
+          className="flex items-center gap-3 font-bold text-lg group-data-[collapsible=icon]:hidden"
         >
-          <Bot className="h-20 w-20 text-primary" />
-          <span>Compliance Standard Assurance</span>
+          <BrandMark size="lg" icon={Zap} />
+          <span className="text-base leading-snug">
+            Compliance Standard Assurance
+          </span>
         </Link>
       </SidebarHeader>
 
@@ -177,4 +182,3 @@ export default function AppSidebar() {
     </Sidebar>
   );
 }
-
