@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Bot } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { SidebarTrigger } from "./ui/sidebar";
+import { BrandMark } from "./BrandMark";
+import { Zap } from "lucide-react";
 
 export default function Header() {
-  const isMobile = useIsMobile();
-
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
@@ -23,8 +21,10 @@ export default function Header() {
               href="/"
               className="hidden md:flex items-center gap-2 font-bold text-lg"
             >
-              <Bot className="h-6 w-6 text-primary" />
-              <span className="hidden sm:inline-block">Compliance Standard Assurance</span>
+              <BrandMark size="sm" icon={Zap} />
+              <span className="hidden sm:inline-block text-base font-semibold text-slate-900">
+                Compliance Standard Assurance
+              </span>
             </Link>
           </nav>
         </div>

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   ArrowRight,
   Brain,
@@ -31,6 +32,8 @@ type HubFeature = {
   accent: string;
   icon: LucideIcon;
   href: string;
+  comingSoon?: boolean;
+  comingSoonClass?: string;
 };
 
 const features: HubFeature[] = [
@@ -43,6 +46,8 @@ const features: HubFeature[] = [
     accent: "from-sky-400 via-indigo-500 to-purple-500",
     icon: Brain,
     href: "#",
+    comingSoon: true,
+    comingSoonClass: "absolute right-[-1] -top-[-190] text-[5px] px-2 py-[20px] leading-none rounded-full whitespace-nowrap",
   },
   {
     title: "Smart Tracker",
@@ -53,6 +58,8 @@ const features: HubFeature[] = [
     accent: "from-sky-500 via-cyan-500 to-indigo-500",
     icon: ClipboardList,
     href: "#",
+    comingSoon: true,
+    comingSoonClass: "absolute right-[-1] -top-[-190] text-[5px] px-2 py-[20px] leading-none rounded-full whitespace-nowrap",
   },
   {
     title: "Training Hub",
@@ -63,6 +70,8 @@ const features: HubFeature[] = [
     accent: "from-indigo-500 via-blue-500 to-sky-500",
     icon: GraduationCap,
     href: "#",
+    comingSoon: true,
+    comingSoonClass: "absolute right-[-1] -top-[-190] text-[5px] px-2 py-[20px] leading-none rounded-full whitespace-nowrap",
   },
   {
     title: "Excellence Hub",
@@ -73,6 +82,8 @@ const features: HubFeature[] = [
     accent: "from-emerald-400 via-teal-500 to-sky-500",
     icon: BarChart3,
     href: "#",
+    comingSoon: true,
+    comingSoonClass: "absolute right-[-1] -top-[-190] text-[5px] px-2 py-[20px] leading-none rounded-full whitespace-nowrap",
   },
   {
     title: "Knowledgebase",
@@ -83,6 +94,8 @@ const features: HubFeature[] = [
     accent: "from-slate-400 via-slate-500 to-indigo-500",
     icon: BookOpen,
     href: "#",
+    comingSoon: true,
+    comingSoonClass: "absolute right-[-1] -top-[-190] text-[5px] px-2 py-[20px] leading-none rounded-full whitespace-nowrap",
   },
   {
     title: "Network & Community",
@@ -93,6 +106,8 @@ const features: HubFeature[] = [
     accent: "from-amber-400 via-orange-500 to-pink-500",
     icon: Users,
     href: "#",
+    comingSoon: true,
+    comingSoonClass: "absolute right-[-1] -top-[-190] text-[5px] px-2 py-[20px] leading-none rounded-full whitespace-nowrap",
   },
 ];
 
@@ -203,6 +218,18 @@ export default function IntegratedHubPage() {
             {features.map((feature) => (
               <div key={feature.title} className="relative">
                 <Card className="relative h-full overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-xl transition-transform duration-200 hover:-translate-y-1 hover:shadow-2xl">
+                  {feature.comingSoon && (
+                    <div
+                      className={cn(
+                        "absolute z-20",
+                        feature.comingSoonClass ?? "right-4 top-4"
+                      )}
+                    >
+                      <Badge className="rounded-full bg-rose-500 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow">
+                        Coming Soon
+                      </Badge>
+                    </div>
+                  )}
                   <div
                     className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${feature.accent}`}
                   />

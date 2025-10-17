@@ -23,7 +23,6 @@ import {
   Moon,
   Sun,
   LogOut,
-  Bot,
   LayoutGrid,
   FilePlus2,
   ListChecks,
@@ -36,7 +35,9 @@ import {
   Shield,
   ScrollText,
   Grid3x3,
+  Zap,
 } from "lucide-react";
+import { BrandMark } from "./BrandMark";
 
 const navLinks = [
   { href: "/", label: "Overview", icon: LayoutGrid },
@@ -81,10 +82,12 @@ export default function AppSidebar() {
       <SidebarHeader>
         <Link
           href="/"
-          className="flex items-center gap-2 font-bold text-lg group-data-[collapsible=icon]:hidden"
+          className="flex items-center gap-3 font-bold text-lg group-data-[collapsible=icon]:hidden"
         >
-          <Bot className="h-20 w-20 text-primary" />
-          <span>Compliance Standard Assurance</span>
+          <BrandMark size="lg" icon={Zap} />
+          <span className="text-base leading-snug">
+            Compliance Standard Assurance
+          </span>
         </Link>
       </SidebarHeader>
 
