@@ -462,7 +462,9 @@ export default function SummaryBotPage() {
 
     setIsExporting(true);
     try {
-      const XLSX = await import("xlsx");
+      // Robust dynamic import for browser build (Next/Turbopack): try ESM first, then fallback
+      const XLSXMod: any = await import("xlsx/xlsx.mjs").catch(() => import("xlsx"));
+      const XLSX = (XLSXMod as any).default ?? XLSXMod;
       const workbook = XLSX.utils.book_new();
 
       const lv3Header = lv3Rows.map((row) => row.field);
@@ -656,14 +658,8 @@ export default function SummaryBotPage() {
     <MainLayout>
       <div className="flex flex-col gap-6">
         <section className="grid gap-4 lg:grid-cols-1">
-          <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
-      <div className="space-y-10">
-        <section className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-sky-50 via-white to-indigo-100 p-6 sm:p-8 shadow-2xl">
-          <div className="pointer-events-none absolute -top-32 -left-24 h-72 w-72 rounded-full bg-sky-200/35 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-36 -right-28 h-80 w-80 rounded-full bg-purple-200/30 blur-3xl" />
-          <div className="relative grid gap-6 lg:grid-cols-[2fr_3fr]">
-            <Card className="relative rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-sky-500 to-indigo-400" />
+          <Card className="relative rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-sky-500 to-indigo-400" />
             <CardHeader>
               <Badge variant="secondary" className="w-fit">Automation</Badge>
               <CardTitle>Summary file BOT (Beta)</CardTitle>
@@ -749,10 +745,10 @@ export default function SummaryBotPage() {
               </div>
             </CardFooter>
           </Card>
-          {(isLoading || !!error || hasResults) && (
-          <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur min-h-[320px]">
+        </section>
 
-            <Card className="relative rounded-3xl border border-white/70 bg-white/90 shadow-xl backdrop-blur min-h-[320px]">
+        {(isLoading || !!error || hasResults) && (
+          <Card className="relative rounded-3xl border border-white/70 bg-white/90 shadow-xl backdrop-blur min-h-[320px]">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 via-blue-400 to-sky-400" />
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1252,9 +1248,7 @@ export default function SummaryBotPage() {
               )}
             </CardContent>
           </Card>
-          )}
-          </div>
-        </section>
+        )}
         {draftText && (
           <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
             <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
