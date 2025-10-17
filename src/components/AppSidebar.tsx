@@ -35,6 +35,7 @@ import {
   Cpu,
   Shield,
   ScrollText,
+  Grid3x3,
 } from "lucide-react";
 
 const navLinks = [
@@ -43,6 +44,7 @@ const navLinks = [
   { href: "/summary-bot", label: "Summary file BOT (Beta)", icon: FileText },
   { href: "/create-sop/workflow-beta", label: "Create SOP Workflow (Beta)", icon: FilePlus2 },
   { href: "/tasks", label: "Project Tracker", icon: CheckSquare },
+  { href: "/integrated-hub", label: "Integrated Hub", icon: Grid3x3 },
   { href: "/document-management", label: "Document Management", icon: FolderKanban, comingSoon: true },
   { href: "/policy-procedure", label: "Policy and Procedure", icon: ScrollText, comingSoon: true },
   { href: "/knowledge-base", label: "Knowledge Base Management", icon: BookOpen, comingSoon: true },
@@ -177,4 +179,3 @@ export default function AppSidebar() {
     </Sidebar>
   );
 }
-
