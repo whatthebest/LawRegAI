@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Download, Loader2, RefreshCcw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +15,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type SummaryRow = {
   field: string;
   value: string;
+};
+
+type CitationPair = {
+  name?: string;
+  desc?: string;
 };
 
 type BotDocumentRow = {
@@ -69,6 +74,7 @@ export default function SummaryBotPage() {
   const [scrapeMeta, setScrapeMeta] = useState<{ fetchedAt?: string; rawCount?: number } | null>(null);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [isScraping, setIsScraping] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleSummarize = async () => {
     setIsLoading(true);
@@ -188,6 +194,63 @@ export default function SummaryBotPage() {
     });
   }, [rawData, LV3_FIELD_ORDER]);
 
+  const CITATION_META_FIELDS = useMemo(
+    () => [
+      "Compliance Group",
+      "Compliance Risk Area",
+      "Law/Regulation Name",
+      "วันที่กฎหมาย/กฎเกณฑ์กำหนดให้ดาเนินการแล้วเสร็จ",
+      "โทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์",
+      'โทษปรับสูงสุด (เมื่อเลือกโทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์ เป็น "โทษปรับ")',
+      'โทษปรับรายวัน (เมื่อเลือกโทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์ เป็น "โทษปรับ")',
+      'โทษจำคุกสูงสุด (เมื่อเลือกโทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์ เป็น "โทษอาญา/จำคุก ")',
+      "Risk Owner Management Organization",
+      "Process",
+      "สิ่งที่ Risk Owner ต้องดำเนินการ",
+    ],
+    [],
+  );
+
+  const citationTables = useMemo(() => {
+    const splitCitationText = (value: unknown): string[] => {
+      if (Array.isArray(value)) return (value as unknown[]).map(String).filter(Boolean);
+      if (typeof value === "string") {
+        return value
+          .split(/\r?\n|[•\u2022]|;|,|\s-\s/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      return [];
+    };
+
+    const names = splitCitationText(rawData?.["Citation Name"]);
+    const descs = splitCitationText(rawData?.["Citation Description"]);
+    const maxLen = Math.max(names.length, descs.length);
+    const pairs: CitationPair[] = Array.from({ length: maxLen }, (_, i) => ({
+      name: names[i] ?? (maxLen > 0 ? "ไม่ระบุ" : undefined),
+      desc: descs[i] ?? (maxLen > 0 ? "ไม่ระบุ" : undefined),
+    })).filter((p) => typeof p.name !== "undefined" || typeof p.desc !== "undefined");
+
+    const meta = CITATION_META_FIELDS.map((field) => {
+      const v = (rawData as any)?.[field] as unknown;
+      let text = "ไม่พบข้อมูล";
+      if (Array.isArray(v)) text = (v as unknown[]).map(String).join(", ");
+      else if (typeof v === "string") text = v;
+      else if (typeof v === "number" || typeof v === "boolean") text = String(v);
+      return { field, value: text } as SummaryRow;
+    });
+
+    if (pairs.length > 0) {
+      return { pairs, meta, fallback: [] as SummaryRow[] };
+    }
+
+    if (lv4Rows.length > 0) {
+      return { pairs: [] as CitationPair[], meta: [] as SummaryRow[], fallback: lv4Rows };
+    }
+
+    return { pairs: [] as CitationPair[], meta: [] as SummaryRow[], fallback: [] as SummaryRow[] };
+  }, [rawData, lv4Rows, CITATION_META_FIELDS]);
+
   // Bullet rendering for the detailed impact field
   const shouldBulletize = (field: string) =>
     /รายละเอียดผลกระทบ\/สิ่งที่ธนาคารต้อง/i.test(field);
@@ -256,8 +319,76 @@ export default function SummaryBotPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown scraping error.";
       setScrapeError(message);
+  } finally {
+    setIsScraping(false);
+  }
+};
+
+  const sanitizeSheetName = (value: string) =>
+    value.replace(/[\\/?*[\]]/g, "-").slice(0, 31) || "Sheet";
+
+  const handleDownloadExcel = async () => {
+    if (!hasResults) return;
+
+    setIsExporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.utils.book_new();
+
+      const lv3Data: (string | undefined)[][] = [
+        ["Field", "Value"],
+        ...lv3Rows.map((row) => [row.field, row.value]),
+      ];
+      const lv3Sheet = XLSX.utils.aoa_to_sheet(lv3Data);
+      XLSX.utils.book_append_sheet(workbook, lv3Sheet, sanitizeSheetName("Law/Regulation LV3"));
+
+      const citationData: (string | undefined)[][] = [];
+      if (citationTables.pairs.length > 0) {
+        citationData.push(["Citation Name", "Citation Description"]);
+        citationTables.pairs.forEach((pair) => {
+          citationData.push([pair.name ?? "", pair.desc ?? ""]);
+        });
+        if (citationTables.meta.length > 0) {
+          citationData.push([]);
+          citationData.push(["Field", "Value"]);
+          citationTables.meta.forEach((row) => {
+            citationData.push([row.field, row.value]);
+          });
+        }
+      } else if (citationTables.fallback.length > 0) {
+        citationData.push(["Field", "Value"]);
+        citationTables.fallback.forEach((row) => {
+          citationData.push([row.field, row.value]);
+        });
+      } else {
+        citationData.push(["Field", "Value"]);
+        citationData.push(["No citations found", ""]);
+      }
+      const citationSheet = XLSX.utils.aoa_to_sheet(citationData);
+      XLSX.utils.book_append_sheet(workbook, citationSheet, sanitizeSheetName("Citation LV4"));
+
+      if (scrapeDocs.length > 0) {
+        const documentsSheet = XLSX.utils.json_to_sheet(
+          scrapeDocs.map((doc) => ({
+            Title: doc.title,
+            DocumentType: doc.documentType,
+            RawDate: doc.rawDate,
+            EffectiveDate: doc.effectiveDate ?? "",
+            Status: doc.status ?? "",
+            Flag: doc.flag ?? "",
+            PdfUrl: doc.pdfUrl ?? "",
+            DetailUrl: doc.detailUrl ?? "",
+          }))
+        );
+        XLSX.utils.book_append_sheet(workbook, documentsSheet, sanitizeSheetName("BOT Listings"));
+      }
+
+      const timestamp = (lastRunId ?? new Date().toISOString()).replace(/[:.]/g, "-");
+      XLSX.writeFileXLSX(workbook, `bot-summary-${timestamp}.xlsx`);
+    } catch (err) {
+      console.error("Failed to export summary workbook:", err);
     } finally {
-      setIsScraping(false);
+      setIsExporting(false);
     }
   };
 
@@ -328,13 +459,36 @@ export default function SummaryBotPage() {
             </CardFooter>
           </Card>
 
-          <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur min-h-[320px]">
-            <CardHeader>
-              <CardTitle>Output snapshot</CardTitle>
-              <CardDescription>
-                Results from the latest processing run. Data refreshes each time the workflow completes.
-              </CardDescription>
-            </CardHeader>
+            <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur min-h-[320px]">
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <CardTitle>Output snapshot</CardTitle>
+                    <CardDescription>
+                      Results from the latest processing run. Data refreshes each time the workflow completes.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 rounded-full self-start sm:self-auto"
+                    onClick={handleDownloadExcel}
+                    disabled={!hasResults || isLoading || isExporting}
+                  >
+                    {isExporting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4" />
+                        Download Excel
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
             <CardContent className="flex-1">
               {isLoading && (
                 <div className="flex h-48 flex-col items-center justify-center gap-3 text-muted-foreground">
@@ -424,97 +578,28 @@ export default function SummaryBotPage() {
                     </TabsContent>
 
                     <TabsContent value="lv4">
-                      {(() => {
-                        const namesVal = rawData?.["Citation Name"] as unknown;
-                        const descVal = rawData?.["Citation Description"] as unknown;
-                        const names = Array.isArray(namesVal)
-                          ? (namesVal as unknown[]).map(String)
-                          : typeof namesVal === "string"
-                            ? namesVal.split(/\r?\n|[•\u2022]|;|,|\s-\s/).map((s) => s.trim()).filter(Boolean)
-                            : [];
-                        const descs = Array.isArray(descVal)
-                          ? (descVal as unknown[]).map(String)
-                          : typeof descVal === "string"
-                            ? descVal.split(/\r?\n|[•\u2022]|;|,|\s-\s/).map((s) => s.trim()).filter(Boolean)
-                            : [];
-                        const maxLen = Math.max(names.length, descs.length);
-                        const pairs = Array.from({ length: maxLen }, (_, i) => ({
-                          name: names[i] ?? (maxLen > 0 ? "ไม่ระบุ" : undefined),
-                          desc: descs[i] ?? (maxLen > 0 ? "ไม่ระบุ" : undefined),
-                        })).filter((p) => typeof p.name !== "undefined" || typeof p.desc !== "undefined");
+                      {citationTables.pairs.length > 0 ? (
+                        <div className="space-y-4">
+                          <div className="rounded-xl border bg-background/70 backdrop-blur">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="w-[260px]">Citation Name</TableHead>
+                                  <TableHead>Citation Description</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {citationTables.pairs.map((p, idx) => (
+                                  <TableRow key={idx}>
+                                    <TableCell className="align-top font-medium">{p.name}</TableCell>
+                                    <TableCell className="whitespace-pre-wrap break-words">{p.desc}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
 
-                        if (pairs.length > 0) {
-                          return (
-                            <div className="space-y-4">
-                              <div className="rounded-xl border bg-background/70 backdrop-blur">
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead className="w-[260px]">Citation Name</TableHead>
-                                      <TableHead>Citation Description</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {pairs.map((p, idx) => (
-                                      <TableRow key={idx}>
-                                        <TableCell className="align-top font-medium">{p.name}</TableCell>
-                                        <TableCell className="whitespace-pre-wrap break-words">{p.desc}</TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </div>
-
-                              {(() => {
-                                const metaFields = [
-                                  "Compliance Group",
-                                  "Compliance Risk Area",
-                                  "Law/Regulation Name",
-                                  "วันที่กฎหมาย/กฎเกณฑ์กำหนดให้ดาเนินการแล้วเสร็จ",
-                                  "โทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์",
-                                  "โทษปรับสูงสุด (เมื่อเลือกโทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์ เป็น \"โทษปรับ\")",
-                                  "โทษปรับรายวัน (เมื่อเลือกโทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์ เป็น \"โทษปรับ\")",
-                                  "โทษจำคุกสูงสุด (เมื่อเลือกโทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์ เป็น \"โทษอาญา/จำคุก \")",
-                                  "Risk Owner Management Organization",
-                                  "Process",
-                                  "สิ่งที่ Risk Owner ต้องดำเนินการ",
-                                ];
-                                const list = metaFields.map((field) => {
-                                  const v = (rawData as any)?.[field] as unknown;
-                                  let text = "ไม่พบข้อมูล";
-                                  if (Array.isArray(v)) text = v.join(", ");
-                                  else if (typeof v === "string") text = v;
-                                  else if (typeof v === "number" || typeof v === "boolean") text = String(v);
-                                  return { field, value: text } as SummaryRow;
-                                });
-                                return (
-                                  <div className="rounded-xl border bg-background/70 backdrop-blur">
-                                    <Table>
-                                      <TableHeader>
-                                        <TableRow>
-                                          <TableHead className="w-56">Field</TableHead>
-                                          <TableHead>Value</TableHead>
-                                        </TableRow>
-                                      </TableHeader>
-                                      <TableBody>
-                                        {list.map((row) => (
-                                          <TableRow key={row.field}>
-                                            <TableCell className="font-medium">{row.field}</TableCell>
-                                            <TableCell className="whitespace-pre-wrap break-words">{row.value}</TableCell>
-                                          </TableRow>
-                                        ))}
-                                      </TableBody>
-                                    </Table>
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                          );
-                        }
-
-                        // Fallback to simple field/value rendering when arrays are missing
-                        if (lv4Rows.length > 0) {
-                          return (
+                          {citationTables.meta.length > 0 && (
                             <div className="rounded-xl border bg-background/70 backdrop-blur">
                               <Table>
                                 <TableHeader>
@@ -524,7 +609,7 @@ export default function SummaryBotPage() {
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {lv4Rows.map((row) => (
+                                  {citationTables.meta.map((row) => (
                                     <TableRow key={row.field}>
                                       <TableCell className="font-medium">{row.field}</TableCell>
                                       <TableCell className="whitespace-pre-wrap break-words">{row.value}</TableCell>
@@ -533,16 +618,33 @@ export default function SummaryBotPage() {
                                 </TableBody>
                               </Table>
                             </div>
-                          );
-                        }
-
-                        return (
-                          <div className="flex h-32 flex-col items-center justify-center gap-1 text-muted-foreground">
-                            <span className="font-medium text-foreground">No citations found</span>
-                            <p className="text-center text-xs">The summary did not return LV4 citation fields.</p>
-                          </div>
-                        );
-                      })()}
+                          )}
+                        </div>
+                      ) : citationTables.fallback.length > 0 ? (
+                        <div className="rounded-xl border bg-background/70 backdrop-blur">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-56">Field</TableHead>
+                                <TableHead>Value</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {citationTables.fallback.map((row) => (
+                                <TableRow key={row.field}>
+                                  <TableCell className="font-medium">{row.field}</TableCell>
+                                  <TableCell className="whitespace-pre-wrap break-words">{row.value}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      ) : (
+                        <div className="flex h-32 flex-col items-center justify-center gap-1 text-muted-foreground">
+                          <span className="font-medium text-foreground">No citations found</span>
+                          <p className="text-center text-xs">The summary did not return LV4 citation fields.</p>
+                        </div>
+                      )}
                     </TabsContent>
                   </Tabs>
                 </div>
