@@ -367,14 +367,18 @@ export default function SummaryBotPage() {
     });
 
     if (pairs.length > 0) {
-      return { pairs, meta, fallback: [] as SummaryRow[] };
+      const metaMap = meta.reduce<Record<string, string>>((acc, row) => {
+        acc[row.field] = row.value;
+        return acc;
+      }, {});
+      return { pairs, meta, metaMap, fallback: [] as SummaryRow[] };
     }
 
     if (lv4Rows.length > 0) {
-      return { pairs: [] as CitationPair[], meta: [] as SummaryRow[], fallback: lv4Rows };
+      return { pairs: [] as CitationPair[], meta: [] as SummaryRow[], metaMap: {}, fallback: lv4Rows };
     }
 
-    return { pairs: [] as CitationPair[], meta: [] as SummaryRow[], fallback: [] as SummaryRow[] };
+    return { pairs: [] as CitationPair[], meta: [] as SummaryRow[], metaMap: {}, fallback: [] as SummaryRow[] };
   }, [rawData, lv4Rows, CITATION_META_FIELDS]);
 
   // Bullet rendering for the detailed impact field
@@ -461,26 +465,25 @@ export default function SummaryBotPage() {
       const XLSX = await import("xlsx");
       const workbook = XLSX.utils.book_new();
 
-      const lv3Data: (string | undefined)[][] = [
-        ["Field", "Value"],
-        ...lv3Rows.map((row) => [row.field, row.value]),
-      ];
-      const lv3Sheet = XLSX.utils.aoa_to_sheet(lv3Data);
+      const lv3Header = lv3Rows.map((row) => row.field);
+      const lv3Values = lv3Rows.map((row) => row.value);
+      const lv3Sheet = XLSX.utils.aoa_to_sheet([lv3Header, lv3Values]);
       XLSX.utils.book_append_sheet(workbook, lv3Sheet, sanitizeSheetName("Law/Regulation LV3"));
 
       const citationData: (string | undefined)[][] = [];
       if (citationTables.pairs.length > 0) {
-        citationData.push(["Citation Name", "Citation Description"]);
+        const citationHeaders = [
+          "Citation Name",
+          ...CITATION_META_FIELDS,
+          "Citation Description",
+        ];
+        citationData.push(citationHeaders);
         citationTables.pairs.forEach((pair) => {
-          citationData.push([pair.name ?? "", pair.desc ?? ""]);
+          const metaValues = CITATION_META_FIELDS.map(
+            (field) => citationTables.metaMap[field] ?? "",
+          );
+          citationData.push([pair.name ?? "", ...metaValues, pair.desc ?? ""]);
         });
-        if (citationTables.meta.length > 0) {
-          citationData.push([]);
-          citationData.push(["Field", "Value"]);
-          citationTables.meta.forEach((row) => {
-            citationData.push([row.field, row.value]);
-          });
-        }
       } else if (citationTables.fallback.length > 0) {
         citationData.push(["Field", "Value"]);
         citationTables.fallback.forEach((row) => {
@@ -654,6 +657,13 @@ export default function SummaryBotPage() {
       <div className="flex flex-col gap-6">
         <section className="grid gap-4 lg:grid-cols-1">
           <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
+      <div className="space-y-10">
+        <section className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-sky-50 via-white to-indigo-100 p-6 sm:p-8 shadow-2xl">
+          <div className="pointer-events-none absolute -top-32 -left-24 h-72 w-72 rounded-full bg-sky-200/35 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-36 -right-28 h-80 w-80 rounded-full bg-purple-200/30 blur-3xl" />
+          <div className="relative grid gap-6 lg:grid-cols-[2fr_3fr]">
+            <Card className="relative rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-sky-500 to-indigo-400" />
             <CardHeader>
               <Badge variant="secondary" className="w-fit">Automation</Badge>
               <CardTitle>Summary file BOT (Beta)</CardTitle>
@@ -741,6 +751,9 @@ export default function SummaryBotPage() {
           </Card>
           {(isLoading || !!error || hasResults) && (
           <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur min-h-[320px]">
+
+            <Card className="relative rounded-3xl border border-white/70 bg-white/90 shadow-xl backdrop-blur min-h-[320px]">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 via-blue-400 to-sky-400" />
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-1">
@@ -1240,6 +1253,7 @@ export default function SummaryBotPage() {
             </CardContent>
           </Card>
           )}
+          </div>
         </section>
         {draftText && (
           <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
@@ -1288,7 +1302,9 @@ export default function SummaryBotPage() {
           </Card>
         )}
 
-        <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
+        <section className="rounded-3xl border border-white/70 bg-gradient-to-br from-white via-slate-50 to-sky-50/60 p-6 shadow-xl">
+          <Card className="relative rounded-3xl border border-white/70 bg-white/90 shadow-xl backdrop-blur">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400" />
           <CardHeader>
             <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
               <div>
@@ -1427,7 +1443,8 @@ export default function SummaryBotPage() {
               </div>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </section>
       </div>
     </MainLayout>
   );
