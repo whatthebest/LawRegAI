@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, RefreshCcw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type SummaryRow = {
   field: string;
@@ -63,6 +64,7 @@ export default function SummaryBotPage() {
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [lastRunId, setLastRunId] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState(DEFAULT_PDF_URL);
+  const [rawData, setRawData] = useState<Record<string, unknown> | null>(null);
   const [scrapeDocs, setScrapeDocs] = useState<BotDocumentRow[]>([]);
   const [scrapeMeta, setScrapeMeta] = useState<{ fetchedAt?: string; rawCount?: number } | null>(null);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
@@ -125,6 +127,7 @@ export default function SummaryBotPage() {
       }));
 
       setRows(tableRows);
+      setRawData(payload.data as Record<string, unknown>);
       setLastRunId(payload.runId ?? new Date().toISOString());
       if (sourceUrl) {
         setPdfUrl(sourceUrl);
@@ -145,6 +148,72 @@ export default function SummaryBotPage() {
 
   const hasResults = useMemo(() => rows.length > 0, [rows]);
   const hasScrapeResults = useMemo(() => scrapeDocs.length > 0, [scrapeDocs]);
+
+  // Split output rows into LV3 (general) and LV4 (citations)
+  const lv4Rows = useMemo(
+    () => rows.filter((r) => /^\s*citation\b/i.test(r.field)),
+    [rows],
+  );
+  const LV3_FIELD_ORDER = useMemo(
+    () => [
+      "Law/Regulation Name",
+      "Source Type",
+      "หน่วยงาน Regulator",
+      "ชื่อหน่วยงาน Regulator (กรณีไม่มีในตัวเลือก)",
+      "Compliance Group",
+      "Compliance Risk Area",
+      "วันที่ประกาศ",
+      "วันที่มีผลบังคับใช้",
+      "วัตถุประสงค์ของกฎหมาย/กฎเกณฑ์/ประกาศ",
+      "สรุปสาระสำคัญที่เปลี่ยนแปลง",
+      "ช่องทางการรับทราบการเปลี่ยนแปลง",
+      "รายละเอียดช่องทางการรับทราบ (เมื่อเลือก \"อื่นๆ\")",
+      "URL ของกฎหมาย/กฎเกณฑ์ที่เปลี่ยนแปลง (เมื่อช่องทางการรับทราบการเปลี่ยนแปลงเป็น Website ของ Regulator )",
+      "ความซับซ้อน",
+      "ผลกระทบ/สิ่งที่ธนาคารต้องดาเนินการ",
+      "รายละเอียดผลกระทบ/สิ่งที่ธนาคารต้องดำเนินการ (เมื่อมีผลกระทบ/มีสิ่งที่ธนาคารต้องดาเนินการ)",
+    ],
+    [],
+  );
+
+  const lv3Rows = useMemo(() => {
+    const src = rawData ?? {};
+    return LV3_FIELD_ORDER.map((field) => {
+      const val = (src as any)[field];
+      let text = "ไม่พบข้อมูล";
+      if (Array.isArray(val)) text = val.join(", ");
+      else if (typeof val === "string") text = val;
+      else if (typeof val === "number" || typeof val === "boolean") text = String(val);
+      return { field, value: text } as SummaryRow;
+    });
+  }, [rawData, LV3_FIELD_ORDER]);
+
+  // Bullet rendering for the detailed impact field
+  const shouldBulletize = (field: string) =>
+    /รายละเอียดผลกระทบ\/สิ่งที่ธนาคารต้อง/i.test(field);
+
+  const splitToBullets = (text: string): string[] => {
+    if (!text) return [];
+    // Normalize common bullet markers to newline
+    const normalized = text
+      .replace(/[•\u2022]/g, "\n")
+      .replace(/\s*-\s+/g, "\n")
+      .replace(/\s*\d+\.?\s+/g, (m) => `\n${m.trim()} `);
+
+    let items = normalized
+      .split(/\r?\n|;|·|–|—/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (items.length <= 1) {
+      // Fallback: split by comma variants
+      items = text
+        .split(/[，、,]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    return items;
+  };
 
   const formatDocumentDate = (doc: BotDocumentRow) => {
     if (doc.effectiveDate) {
@@ -298,23 +367,184 @@ export default function SummaryBotPage() {
               )}
 
               {!isLoading && !error && hasResults && (
-                <div className="rounded-xl border bg-background/70 backdrop-blur">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-56">Field</TableHead>
-                        <TableHead>Value</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((row) => (
-                        <TableRow key={row.field}>
-                          <TableCell className="font-medium">{row.field}</TableCell>
-                          <TableCell className="whitespace-pre-wrap break-words">{row.value}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                <div className="flex flex-col">
+                  <Tabs defaultValue="lv3" className="w-full space-y-4">
+                    <TabsList className="mb-2 grid w-full gap-2 rounded-2xl border border-white/70 bg-white/80 p-1 backdrop-blur sm:grid-cols-2">
+                      <TabsTrigger
+                        value="lv3"
+                        className="gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500/15 data-[state=active]:to-indigo-500/15 data-[state=active]:text-slate-900 data-[state=active]:shadow"
+                      >
+                        Law/Regulation LV3
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="lv4"
+                        className="gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500/15 data-[state=active]:to-teal-500/15 data-[state=active]:text-slate-900 data-[state=active]:shadow"
+                      >
+                        Citation LV4
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="lv3">
+                      <div className="rounded-xl border bg-background/70 backdrop-blur">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-56">Field</TableHead>
+                              <TableHead>Value</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {lv3Rows.map((row) => {
+                              const rawVal = (rawData as any)?.[row.field];
+                              const bullets = shouldBulletize(row.field)
+                                ? (Array.isArray(rawVal)
+                                    ? (rawVal as unknown[]).map(String).filter(Boolean)
+                                    : splitToBullets(row.value))
+                                : null;
+                              return (
+                                <TableRow key={row.field}>
+                                  <TableCell className="font-medium">{row.field}</TableCell>
+                                  <TableCell className="whitespace-pre-wrap break-words">
+                                    {bullets && bullets.length > 1 ? (
+                                      <ul className="list-disc pl-5 space-y-1">
+                                        {bullets.map((b, i) => (
+                                          <li key={i}>{b}</li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      row.value
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="lv4">
+                      {(() => {
+                        const namesVal = rawData?.["Citation Name"] as unknown;
+                        const descVal = rawData?.["Citation Description"] as unknown;
+                        const names = Array.isArray(namesVal)
+                          ? (namesVal as unknown[]).map(String)
+                          : typeof namesVal === "string"
+                            ? namesVal.split(/\r?\n|[•\u2022]|;|,|\s-\s/).map((s) => s.trim()).filter(Boolean)
+                            : [];
+                        const descs = Array.isArray(descVal)
+                          ? (descVal as unknown[]).map(String)
+                          : typeof descVal === "string"
+                            ? descVal.split(/\r?\n|[•\u2022]|;|,|\s-\s/).map((s) => s.trim()).filter(Boolean)
+                            : [];
+                        const maxLen = Math.max(names.length, descs.length);
+                        const pairs = Array.from({ length: maxLen }, (_, i) => ({
+                          name: names[i] ?? (maxLen > 0 ? "ไม่ระบุ" : undefined),
+                          desc: descs[i] ?? (maxLen > 0 ? "ไม่ระบุ" : undefined),
+                        })).filter((p) => typeof p.name !== "undefined" || typeof p.desc !== "undefined");
+
+                        if (pairs.length > 0) {
+                          return (
+                            <div className="space-y-4">
+                              <div className="rounded-xl border bg-background/70 backdrop-blur">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="w-[260px]">Citation Name</TableHead>
+                                      <TableHead>Citation Description</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {pairs.map((p, idx) => (
+                                      <TableRow key={idx}>
+                                        <TableCell className="align-top font-medium">{p.name}</TableCell>
+                                        <TableCell className="whitespace-pre-wrap break-words">{p.desc}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+
+                              {(() => {
+                                const metaFields = [
+                                  "Compliance Group",
+                                  "Compliance Risk Area",
+                                  "Law/Regulation Name",
+                                  "วันที่กฎหมาย/กฎเกณฑ์กำหนดให้ดาเนินการแล้วเสร็จ",
+                                  "โทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์",
+                                  "โทษปรับสูงสุด (เมื่อเลือกโทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์ เป็น \"โทษปรับ\")",
+                                  "โทษปรับรายวัน (เมื่อเลือกโทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์ เป็น \"โทษปรับ\")",
+                                  "โทษจำคุกสูงสุด (เมื่อเลือกโทษ/ผลกระทบกรณีไม่ปฏิบัติตามกฎหมาย/กฎเกณฑ์ เป็น \"โทษอาญา/จำคุก \")",
+                                  "Risk Owner Management Organization",
+                                  "Process",
+                                  "สิ่งที่ Risk Owner ต้องดำเนินการ",
+                                ];
+                                const list = metaFields.map((field) => {
+                                  const v = (rawData as any)?.[field] as unknown;
+                                  let text = "ไม่พบข้อมูล";
+                                  if (Array.isArray(v)) text = v.join(", ");
+                                  else if (typeof v === "string") text = v;
+                                  else if (typeof v === "number" || typeof v === "boolean") text = String(v);
+                                  return { field, value: text } as SummaryRow;
+                                });
+                                return (
+                                  <div className="rounded-xl border bg-background/70 backdrop-blur">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="w-56">Field</TableHead>
+                                          <TableHead>Value</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {list.map((row) => (
+                                          <TableRow key={row.field}>
+                                            <TableCell className="font-medium">{row.field}</TableCell>
+                                            <TableCell className="whitespace-pre-wrap break-words">{row.value}</TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          );
+                        }
+
+                        // Fallback to simple field/value rendering when arrays are missing
+                        if (lv4Rows.length > 0) {
+                          return (
+                            <div className="rounded-xl border bg-background/70 backdrop-blur">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-56">Field</TableHead>
+                                    <TableHead>Value</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {lv4Rows.map((row) => (
+                                    <TableRow key={row.field}>
+                                      <TableCell className="font-medium">{row.field}</TableCell>
+                                      <TableCell className="whitespace-pre-wrap break-words">{row.value}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="flex h-32 flex-col items-center justify-center gap-1 text-muted-foreground">
+                            <span className="font-medium text-foreground">No citations found</span>
+                            <p className="text-center text-xs">The summary did not return LV4 citation fields.</p>
+                          </div>
+                        );
+                      })()}
+                    </TabsContent>
+                  </Tabs>
                 </div>
               )}
             </CardContent>
