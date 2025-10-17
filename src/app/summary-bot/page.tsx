@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import MainLayout from "@/components/MainLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Download, Loader2, RefreshCcw } from "lucide-react";
+import { Download, FileText, Loader2, RefreshCcw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type SummaryRow = {
   field: string;
@@ -74,7 +76,13 @@ export default function SummaryBotPage() {
   const [scrapeMeta, setScrapeMeta] = useState<{ fetchedAt?: string; rawCount?: number } | null>(null);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [isScraping, setIsScraping] = useState(false);
+  const [isGeneratingDoc, setIsGeneratingDoc] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [draftText, setDraftText] = useState<string>("");
+  const [isDraftLoading, setIsDraftLoading] = useState(false);
+  const [isDocExporting, setIsDocExporting] = useState(false);
+  const draftRef = useRef<HTMLTextAreaElement | null>(null);
 
   const handleSummarize = async () => {
     setIsLoading(true);
@@ -181,6 +189,124 @@ export default function SummaryBotPage() {
     ],
     [],
   );
+
+  // Dropdown options for Edit mode
+  const COMPLEXITY_OPTIONS = useMemo(() => ["ซับซ้อน", "ไม่ซับซ้อน"], []);
+  const COMPLIANCE_GROUP_OPTIONS = useMemo(
+    () => [
+      "กฎเกณฑ์ธุรกรรมสินเชื่อและธุรกรรมคล้ายสินเชื่อ",
+      "กฎเกณฑ์ผลิตภัณฑ์ลูกค้ารายย่อย",
+      "กฎเกณฑ์ช่องทาง (Banking Channel)",
+      "กฎเกณฑ์ Digital Banking Business",
+      "กฎเกณฑ์ธุรกิจหลักทรัพย์",
+      "กฎเกณฑ์ธุรกรรมอนุพันธ์ และปริวรรตเงินตราต่างประเทศ",
+      "กฎเกณฑ์ธุรกิจการให้บริการอื่น และพันธมิตรทางธุรกิจ",
+      "กฎเกณฑ์ที่เกี่ยวข้องกับการดำรงสถานะกิจการและบริหารจัดการความเสี่ยง",
+      "กฎเกณฑ์การกำกับดูแลกลุ่มธุรกิจทางการเงิน",
+      "กฎเกณฑ์การบริการจัดการทรัพย์สิน และ NPA",
+      "กฎเกณฑ์ Market Conduct",
+      "กฎเกณฑ์ IT Compliance",
+      "กฎเกณฑ์ด้าน AML/CTPF",
+      "กฎเกณฑ์สากล",
+      "กฎเกณฑ์ด้านการป้องกันและปราบปรามการทุจริต",
+      "กฎเกณฑ์ธุรกิจ e-Payment",
+      "Policy & Procedure",
+      "กฎเกณฑ์ธรรมาภิบาลและกลไกการควบคุมภายใน",
+    ],
+    [],
+  );
+
+  const COMPLIANCE_RISK_AREA_OPTIONS = useMemo(
+    () => [
+      "สินเชื่อลูกค้าบุคคล",
+      "สินเชื่อที่อยู่อาศัย",
+      "สินเชื่อ sSME",
+      "สินเชื่อธุรกิจขนาดกลางและขนาดใหญ่",
+      "ธุรกรรมที่ลักษณะคล้ายการให้สินเชื่อ เช่น Factoring, Leasing",
+      "ธุรกรรมเงินฝาก [THB] และธุรกรรมที่เกี่ยวข้องกับเงินฝาก",
+      "บัตรเดบิต",
+      "KTC co-brand",
+      "ธุรกิจ Bancassurance",
+      "ช่องทางการให้บริการ (Channel ตาม สนส.15/2563)",
+      "Digital Channel",
+      "กฎเกณฑ์ Digital Product (ข้อมูลที่ใช้พิจารณาผลิตภัณฑ์ ในรูปแบบ Electronic Data)",
+      "กฎเกณฑ์ธุรกิจ Digital ID",
+      "กฎเกณฑ์ธุรกิจ Digital platform",
+      "กฎเกณฑ์ธุรกิจ e-Tax",
+      "ธุรกรรม LBDU",
+      "ธุรกรรมการค้าตราสารแห่งหนี้",
+      "ธุรกรรมการจัดจำหน่ายตราสารแห่งหนี้",
+      "ธุรกิจหลักทรัพย์อื่น",
+      "การขึ้นทะเบียนหลักทรัพย์",
+      "คุณสมบัติกรรมการและผู้บริหาร",
+      "Fair Dealing ด้านที่ 1 การจัดโครงสร้างองค์กร บทบาทของคณะกรรมการ และหน้าที่ของผู้บริหารระดับสูง",
+      "Fair Dealing ด้านที่ 2 การคัดเลือกผลิตภัณฑ์และการจัดกลุ่มลูกค้า (Product Selection and Client Segmentation)",
+      "Fair Dealing ด้านที่ 3 การสื่อสารและการให้ความรู้แก่คนขาย (Communication and Training Program)",
+      "Fair Dealing ด้านที่ 4 กระบวนการขาย (Sales Process)",
+      "Fair Dealing ด้านที่ 5 การกำหนดวิธีจ่ายค่าตอบแทน (Remuneration Structure)",
+      "Fair Dealing ด้านที่ 6 การจัดการเรื่องร้องเรียน (Complaint Handling)",
+      "Fair Dealing ด้านที่ 7 การควบคุมภายในและการตรวจสอบการปฏิบัติงาน (Internal Control and In-house Inspection)",
+      "Fair Dealing ด้านที่ 8 ระบบปฏิบัติการและแผนรองรับกรณีเกิดเหตุฉุกเฉิน (Operation and Business Continuity)",
+      "ธุรกรรมอนุพันธ์ (รวมสัญญาซื้อขายล่วงหน้า)",
+      "Thai Overnight Repurchase Rate : THOR",
+      "BIBOR",
+      "Historical Rate Roll Over",
+      "ปริวรรตเงินตราต่างประเทศ",
+      "IT Related Services",
+      "Other Services",
+      "Banking Agent",
+      "Outsourcing",
+      "พันธมิตรทางธุรกิจรูปแบบอื่น",
+      "การดำรงเงินกองทุน/ Basel III",
+      "การลงทุน (BANK Investment)",
+      "การบริหารความเสี่ยงด้านต่างๆ",
+      "โครงสร้างและขอบเขตการประกอบธุรกิจ",
+      "ความเสี่ยงของกลุ่มธุรกิจฯ",
+      "ความเพียงพอของเงินกองทุนของกลุ่มธุรกิจฯ",
+      "การจัดทำรายงานของกลุ่มธุรกิจฯ",
+      "การจัดหาและใช้ประโยชน์จากอสังหาริมทรัพย์",
+      "การถือครองและการนำ NPA ไปใช้ประโยชน์",
+      "Market Conduct ระบบ 1 วัฒนธรรมองค์กร และบทบาทหน้าที่ของคณะกรรมการและผู้บริหารระดับสูง",
+      "Market Conduct ระบบ 2 การพัฒนาผลิตภัณฑ์และการจัดกลุ่มลูกค้า",
+      "Market Conduct ระบบ 3 การจ่ายค่าตอบแทน",
+      "Market Conduct ระบบ 4 กระบวนการขาย",
+      "Market Conduct ระบบ 5 การสื่อสารและการให้ความรู้แก่พนักงาน",
+      "Market Conduct ระบบ 6 การดูแลข้อมูลของลูกค้า",
+      "Market Conduct ระบบ 7 การแก้ไขปัญหาและจัดการเรื่องร้องเรียน",
+      "Market Conduct ระบบ 8 การควบคุม กำกับ และตรวจสอบ",
+      "Market Conduct ระบบ 9 การปฏิบัติงานและแผนรองรับการปฏิบัติงาน",
+      "การปฏิบัติตามกฎเกณฑ์ IT Compliance (IT Risk Management & related guidelines)",
+      "การจัดทำและนำส่งรายงาน ธปท. (IT Compliance)",
+      "การบริหารจัดการ IT Incident (IT Incident Management)",
+      "นโยบายและระเบียบปฏิบัติงานด้าน AML/CTPF",
+      "กระบวนการ KYC/CDD",
+      "กระบวนการรายงานธุรกรรม ปปง.",
+      "กฎเกณฑ์ FATCA",
+      "การกำกับดูแลสาขาต่างประเทศ",
+      "กฎเกณฑ์ CRS",
+      "การป้องกันและปราบปรามการทุจริต",
+      "การประกอบธุรกิจ e-Payment",
+      "การจัดทำและนำส่งรายงาน e-Payment",
+      "การปฏิบัติงานถูกต้องตามระเบียบ/นโยบายธนาคาร",
+      "การทบทวนระเบียบ/นโยบาย ประจำปี",
+      "หลักเกณฑ์เกี่ยวกับผู้ถือหุ้นและสถาบันการเงิน",
+      "หลักเกณฑ์เกี่ยวกับกรรมการและผู้บริหารระดับสูง",
+      "หลักเกณฑ์ด้านกลไกการควบคุมภายใน",
+    ],
+    [],
+  );
+
+  const OWNER_ORG_OPTIONS = useMemo(() => ["RER", "NRR", "AMR", "DBR", "OBR"], []);
+
+  const isDropdownField = (
+    field: string,
+  ): "complexity" | "group" | "risk" | "ownerOrg" | null => {
+    if (/^\s*ความซับซ้อน\s*$/i.test(field)) return "complexity";
+    if (/^\s*Compliance Group\s*$/i.test(field)) return "group";
+    if (/^\s*Compliance Risk Area\s*$/i.test(field)) return "risk";
+    if (/^\s*Risk Owner Management Organization\s*$/i.test(field)) return "ownerOrg";
+    return null;
+  };
 
   const lv3Rows = useMemo(() => {
     const src = rawData ?? {};
@@ -392,10 +518,141 @@ export default function SummaryBotPage() {
     }
   };
 
+  const handleGenerateCircular = async () => {
+    setIsGeneratingDoc(true);
+    setDocError(null);
+    try {
+      const trimmedUrl = pdfUrl.trim();
+      const res = await fetch("/api/summary-bot/generate-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfUrl: trimmedUrl.length ? trimmedUrl : undefined }),
+      });
+      if (!res.ok) {
+        let message = res.statusText || "Failed to generate circular";
+        try {
+          const j = await res.json();
+          if (j?.error) message = j.error;
+        } catch {}
+        throw new Error(message);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `circular_${new Date().toISOString().replace(/[:.]/g, "-")}.doc`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setDocError(msg);
+    } finally {
+      setIsGeneratingDoc(false);
+    }
+  };
+
+  const handleGenerateDraft = async () => {
+    setIsDraftLoading(true);
+    setDocError(null);
+    try {
+      const trimmedUrl = pdfUrl.trim();
+      const res = await fetch("/api/summary-bot/generate-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfUrl: trimmedUrl.length ? trimmedUrl : undefined, draft: true }),
+      });
+      const payload = await res.json();
+      if (!res.ok || !payload?.content) {
+        throw new Error(payload?.error || res.statusText || "Failed to generate draft");
+      }
+      setDraftText(String(payload.content));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setDocError(msg);
+    } finally {
+      setIsDraftLoading(false);
+    }
+  };
+
+  // Focus/scroll to draft when it appears
+  useEffect(() => {
+    if (draftText && draftRef.current) {
+      draftRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      draftRef.current.focus();
+    }
+  }, [draftText]);
+
+  const [isEditingFields, setIsEditingFields] = useState(false);
+  const [editData, setEditData] = useState<Record<string, unknown> | null>(null);
+
+  const cloneData = (data: Record<string, unknown> | null): Record<string, unknown> =>
+    data ? JSON.parse(JSON.stringify(data)) : {};
+
+  const recomputeRowsFromData = (data: Record<string, unknown>): SummaryRow[] =>
+    Object.entries(data).map(([field, value]) => ({
+      field,
+      value: Array.isArray(value) ? (value as unknown[]).map(String).join(", ") : `${value ?? ""}`,
+    }));
+
+  const startEditFields = () => {
+    const base = rawData ?? Object.fromEntries(rows.map((r) => [r.field, r.value]));
+    setEditData(cloneData(base));
+    setIsEditingFields(true);
+  };
+
+  const cancelEditFields = () => {
+    setIsEditingFields(false);
+    setEditData(null);
+  };
+
+  const saveEditFields = () => {
+    const finalData = editData ? cloneData(editData) : {};
+    setRawData(finalData);
+    setRows(recomputeRowsFromData(finalData));
+    setIsEditingFields(false);
+  };
+
+  const handleExportDraft = async () => {
+    if (!draftText.trim()) return;
+    setIsDocExporting(true);
+    setDocError(null);
+    try {
+      const res = await fetch("/api/summary-bot/generate-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plainText: draftText }),
+      });
+      if (!res.ok) {
+        let message = res.statusText || "Failed to export document";
+        try {
+          const j = await res.json();
+          if (j?.error) message = j.error;
+        } catch {}
+        throw new Error(message);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `circular_${new Date().toISOString().replace(/[:.]/g, "-")}.doc`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setDocError(msg);
+    } finally {
+      setIsDocExporting(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="flex flex-col gap-6">
-        <section className="grid gap-4 lg:grid-cols-[2fr_3fr]">
+        <section className="grid gap-4 lg:grid-cols-1">
           <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
             <CardHeader>
               <Badge variant="secondary" className="w-fit">Automation</Badge>
@@ -442,24 +699,48 @@ export default function SummaryBotPage() {
                 ) : (
                   "No runs yet"
                 )}
-              </div>
-              <Button onClick={handleSummarize} disabled={isLoading} className="gap-2">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Running…
-                  </>
-                ) : (
-                  <>
-                    <RefreshCcw className="h-4 w-4" />
-                    Run Summary
-                  </>
+                {docError && (
+                  <p className="mt-1 text-xs text-destructive-foreground">Generate failed: {docError}</p>
                 )}
-              </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleGenerateDraft}
+                  disabled={isDraftLoading}
+                  className="gap-2"
+                >
+                  {isDraftLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Drafting…
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="h-4 w-4" />
+                      Generate Draft
+                    </>
+                  )}
+                </Button>
+
+                <Button onClick={handleSummarize} disabled={isLoading} className="gap-2">
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Running…
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCcw className="h-4 w-4" />
+                      Run Summary
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardFooter>
           </Card>
-
-            <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur min-h-[320px]">
+          {(isLoading || !!error || hasResults) && (
+          <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur min-h-[320px]">
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-1">
@@ -468,25 +749,59 @@ export default function SummaryBotPage() {
                       Results from the latest processing run. Data refreshes each time the workflow completes.
                     </CardDescription>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 rounded-full self-start sm:self-auto"
-                    onClick={handleDownloadExcel}
-                    disabled={!hasResults || isLoading || isExporting}
-                  >
-                    {isExporting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Generating...
-                      </>
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    {!isEditingFields ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 rounded-full"
+                        onClick={startEditFields}
+                        disabled={!hasResults || isLoading}
+                      >
+                        <>
+                          <FileText className="h-4 w-4" />
+                          Edit
+                        </>
+                      </Button>
                     ) : (
                       <>
-                        <Download className="h-4 w-4" />
-                        Download Excel
+                        <Button
+                          size="sm"
+                          className="gap-2 rounded-full"
+                          onClick={saveEditFields}
+                        >
+                          Save Changes
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 rounded-full"
+                          onClick={cancelEditFields}
+                        >
+                          Cancel
+                        </Button>
                       </>
                     )}
-                  </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 rounded-full"
+                      onClick={handleDownloadExcel}
+                      disabled={!hasResults || isLoading || isExporting || isEditingFields}
+                    >
+                      {isExporting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4" />
+                          Download Excel
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
             <CardContent className="flex-1">
@@ -548,25 +863,130 @@ export default function SummaryBotPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {lv3Rows.map((row) => {
-                              const rawVal = (rawData as any)?.[row.field];
-                              const bullets = shouldBulletize(row.field)
-                                ? (Array.isArray(rawVal)
-                                    ? (rawVal as unknown[]).map(String).filter(Boolean)
-                                    : splitToBullets(row.value))
+                            {(!isEditingFields ? LV3_FIELD_ORDER : LV3_FIELD_ORDER).map((field) => {
+                              const current = (isEditingFields ? editData : rawData) as any;
+                              const val = current ? current[field] : undefined;
+                              const isList = /สรุปสาระสำคัญที่เปลี่ยนแปลง/i.test(field) || shouldBulletize(field);
+                              const dropdownKind = isDropdownField(field);
+                              const displayText = Array.isArray(val)
+                                ? (val as unknown[]).map(String).join(", ")
+                                : typeof val === "string"
+                                  ? val
+                                  : "";
+                              const bullets = !isEditingFields && shouldBulletize(field)
+                                ? (Array.isArray(val)
+                                    ? (val as unknown[]).map(String).filter(Boolean)
+                                    : splitToBullets(displayText))
                                 : null;
                               return (
-                                <TableRow key={row.field}>
-                                  <TableCell className="font-medium">{row.field}</TableCell>
+                                <TableRow key={field}>
+                                  <TableCell className="font-medium">{field}</TableCell>
                                   <TableCell className="whitespace-pre-wrap break-words">
-                                    {bullets && bullets.length > 1 ? (
+                                    {isEditingFields ? (
+                                      dropdownKind === "complexity" ? (
+                                        <Select
+                                          value={typeof val === "string" ? val : ""}
+                                          onValueChange={(v) => {
+                                            const next = { ...(editData as any) };
+                                            next[field] = v;
+                                            setEditData(next);
+                                          }}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="เลือกความซับซ้อน" />
+                                          </SelectTrigger>
+                                          <SelectContent className="max-h-80 overflow-y-auto">
+                                            {COMPLEXITY_OPTIONS.map((opt) => (
+                                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      ) : dropdownKind === "group" ? (
+                                        <Select
+                                          value={typeof val === "string" ? val : ""}
+                                          onValueChange={(v) => {
+                                            const next = { ...(editData as any) };
+                                            next[field] = v;
+                                            setEditData(next);
+                                          }}
+                                        >
+                                          <SelectTrigger className="max-w-[36rem]">
+                                            <SelectValue placeholder="เลือก Compliance Group" />
+                                          </SelectTrigger>
+                                          <SelectContent className="max-h-80 overflow-y-auto">
+                                            {COMPLIANCE_GROUP_OPTIONS.map((opt) => (
+                                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      ) : dropdownKind === "risk" ? (
+                                        <Select
+                                          value={typeof val === "string" ? val : ""}
+                                          onValueChange={(v) => {
+                                            const next = { ...(editData as any) };
+                                            next[field] = v;
+                                            setEditData(next);
+                                          }}
+                                        >
+                                          <SelectTrigger className="max-w-[36rem]">
+                                            <SelectValue placeholder="เลือก Compliance Risk Area" />
+                                          </SelectTrigger>
+                                          <SelectContent className="max-h-80 overflow-y-auto">
+                                            {COMPLIANCE_RISK_AREA_OPTIONS.map((opt) => (
+                                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      ) : dropdownKind === "ownerOrg" ? (
+                                        <Select
+                                          value={typeof val === "string" ? val : ""}
+                                          onValueChange={(v) => {
+                                            const next = { ...(editData as any) };
+        next[field] = v;
+                                            setEditData(next);
+                                          }}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="เลือกหน่วยงาน Risk Owner" />
+                                          </SelectTrigger>
+                                          <SelectContent className="max-h-80 overflow-y-auto">
+                                            {OWNER_ORG_OPTIONS.map((opt) => (
+                                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      ) : isList ? (
+                                        <Textarea
+                                          value={Array.isArray(val) ? (val as unknown[]).map(String).join("\n") : displayText}
+                                          onChange={(e) => {
+                                            const next = { ...(editData as any) };
+                                            const lines = e.target.value
+                                              .split(/\r?\n/)
+                                              .map((s) => s.trim())
+                                              .filter(Boolean);
+                                            next[field] = lines;
+                                            setEditData(next);
+                                          }}
+                                          rows={4}
+                                        />
+                                      ) : (
+                                        <Input
+                                          value={displayText}
+                                          onChange={(e) => {
+                                            const next = { ...(editData as any) };
+                                            next[field] = e.target.value;
+                                            setEditData(next);
+                                          }}
+                                        />
+                                      )
+                                    ) : bullets && bullets.length > 1 ? (
                                       <ul className="list-disc pl-5 space-y-1">
                                         {bullets.map((b, i) => (
                                           <li key={i}>{b}</li>
                                         ))}
                                       </ul>
                                     ) : (
-                                      row.value
+                                      displayText
                                     )}
                                   </TableCell>
                                 </TableRow>
@@ -578,28 +998,214 @@ export default function SummaryBotPage() {
                     </TabsContent>
 
                     <TabsContent value="lv4">
-                      {citationTables.pairs.length > 0 ? (
-                        <div className="space-y-4">
-                          <div className="rounded-xl border bg-background/70 backdrop-blur">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="w-[260px]">Citation Name</TableHead>
-                                  <TableHead>Citation Description</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {citationTables.pairs.map((p, idx) => (
-                                  <TableRow key={idx}>
-                                    <TableCell className="align-top font-medium">{p.name}</TableCell>
-                                    <TableCell className="whitespace-pre-wrap break-words">{p.desc}</TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
+                      {(() => {
+                        if (isEditingFields && editData) {
+                          const getArray = (k: string) => {
+                            const v = (editData as any)[k];
+                            if (Array.isArray(v)) return (v as unknown[]).map(String);
+                            if (typeof v === "string") return v.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+                            return [] as string[];
+                          };
+                          const setArray = (k: string, arr: string[]) => {
+                            setEditData({ ...(editData as any), [k]: arr });
+                          };
+                          const names = getArray("Citation Name");
+                          const descs = getArray("Citation Description");
+                          const maxLen = Math.max(names.length, descs.length, 1);
+                          while (names.length < maxLen) names.push("");
+                          while (descs.length < maxLen) descs.push("");
 
-                          {citationTables.meta.length > 0 && (
+                          const metaList = CITATION_META_FIELDS.map((field) => {
+                            const v = (editData as any)[field];
+                            const text = Array.isArray(v) ? (v as unknown[]).map(String).join(", ") : (v ?? "");
+                            return { field, value: String(text) } as SummaryRow;
+                          });
+
+                          return (
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-sm text-muted-foreground">Edit Citations</div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setArray("Citation Name", [...names, ""]);
+                                      setArray("Citation Description", [...descs, ""]);
+                                    }}
+                                  >
+                                    Add Row
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="rounded-xl border bg-background/70 backdrop-blur">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="w-[260px]">Citation Name</TableHead>
+                                      <TableHead>Citation Description</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {names.map((_, i) => (
+                                      <TableRow key={i}>
+                                        <TableCell className="align-top">
+                                          <Input
+                                            value={names[i]}
+                                            onChange={(e) => {
+                                              const next = [...names];
+                                              next[i] = e.target.value;
+                                              setArray("Citation Name", next);
+                                            }}
+                                          />
+                                        </TableCell>
+                                        <TableCell>
+                                          <Textarea
+                                            value={descs[i]}
+                                            onChange={(e) => {
+                                              const next = [...descs];
+                                              next[i] = e.target.value;
+                                              setArray("Citation Description", next);
+                                            }}
+                                            rows={3}
+                                          />
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+
+                              <div className="rounded-xl border bg-background/70 backdrop-blur">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="w-56">Field</TableHead>
+                                      <TableHead>Value</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                  {metaList.map((row) => {
+                                    const kind = isDropdownField(row.field);
+                                    return (
+                                      <TableRow key={row.field}>
+                                        <TableCell className="font-medium">{row.field}</TableCell>
+                                        <TableCell>
+                                          {kind === "complexity" ? (
+                                            <Select
+                                              value={row.value}
+                                              onValueChange={(v) => setEditData({ ...(editData as any), [row.field]: v })}
+                                            >
+                                              <SelectTrigger><SelectValue placeholder="เลือกความซับซ้อน" /></SelectTrigger>
+                                              <SelectContent className="max-h-80 overflow-y-auto">
+                                                {COMPLEXITY_OPTIONS.map((opt) => (
+                                                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          ) : kind === "group" ? (
+                                            <Select
+                                              value={row.value}
+                                              onValueChange={(v) => setEditData({ ...(editData as any), [row.field]: v })}
+                                            >
+                                              <SelectTrigger className="max-w-[36rem]"><SelectValue placeholder="เลือก Compliance Group" /></SelectTrigger>
+                                              <SelectContent className="max-h-80 overflow-y-auto">
+                                                {COMPLIANCE_GROUP_OPTIONS.map((opt) => (
+                                                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          ) : kind === "risk" ? (
+                                            <Select
+                                              value={row.value}
+                                              onValueChange={(v) => setEditData({ ...(editData as any), [row.field]: v })}
+                                            >
+                                              <SelectTrigger className="max-w-[36rem]"><SelectValue placeholder="เลือก Compliance Risk Area" /></SelectTrigger>
+                                              <SelectContent className="max-h-80 overflow-y-auto">
+                                                {COMPLIANCE_RISK_AREA_OPTIONS.map((opt) => (
+                                                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          ) : kind === "ownerOrg" ? (
+                                            <Select
+                                              value={row.value}
+                                              onValueChange={(v) => setEditData({ ...(editData as any), [row.field]: v })}
+                                            >
+                                              <SelectTrigger><SelectValue placeholder="เลือกหน่วยงาน Risk Owner" /></SelectTrigger>
+                                              <SelectContent className="max-h-80 overflow-y-auto">
+                                                {OWNER_ORG_OPTIONS.map((opt) => (
+                                                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          ) : (
+                                            <Input
+                                              value={row.value}
+                                              onChange={(e) => {
+                                                setEditData({ ...(editData as any), [row.field]: e.target.value });
+                                              }}
+                                            />
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (citationTables.pairs.length > 0) {
+                          return (
+                            <div className="space-y-4">
+                              <div className="rounded-xl border bg-background/70 backdrop-blur">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="w-[260px]">Citation Name</TableHead>
+                                      <TableHead>Citation Description</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {citationTables.pairs.map((p, idx) => (
+                                      <TableRow key={idx}>
+                                        <TableCell className="align-top font-medium">{p.name}</TableCell>
+                                        <TableCell className="whitespace-pre-wrap break-words">{p.desc}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+
+                              {citationTables.meta.length > 0 && (
+                                <div className="rounded-xl border bg-background/70 backdrop-blur">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="w-56">Field</TableHead>
+                                        <TableHead>Value</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {citationTables.meta.map((row) => (
+                                        <TableRow key={row.field}>
+                                          <TableCell className="font-medium">{row.field}</TableCell>
+                                          <TableCell className="whitespace-pre-wrap break-words">{row.value}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        if (citationTables.fallback.length > 0) {
+                          return (
                             <div className="rounded-xl border bg-background/70 backdrop-blur">
                               <Table>
                                 <TableHeader>
@@ -609,7 +1215,7 @@ export default function SummaryBotPage() {
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {citationTables.meta.map((row) => (
+                                  {citationTables.fallback.map((row) => (
                                     <TableRow key={row.field}>
                                       <TableCell className="font-medium">{row.field}</TableCell>
                                       <TableCell className="whitespace-pre-wrap break-words">{row.value}</TableCell>
@@ -618,40 +1224,69 @@ export default function SummaryBotPage() {
                                 </TableBody>
                               </Table>
                             </div>
-                          )}
-                        </div>
-                      ) : citationTables.fallback.length > 0 ? (
-                        <div className="rounded-xl border bg-background/70 backdrop-blur">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-56">Field</TableHead>
-                                <TableHead>Value</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {citationTables.fallback.map((row) => (
-                                <TableRow key={row.field}>
-                                  <TableCell className="font-medium">{row.field}</TableCell>
-                                  <TableCell className="whitespace-pre-wrap break-words">{row.value}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      ) : (
-                        <div className="flex h-32 flex-col items-center justify-center gap-1 text-muted-foreground">
-                          <span className="font-medium text-foreground">No citations found</span>
-                          <p className="text-center text-xs">The summary did not return LV4 citation fields.</p>
-                        </div>
-                      )}
+                          );
+                        }
+                        return (
+                          <div className="flex h-32 flex-col items-center justify-center gap-1 text-muted-foreground">
+                            <span className="font-medium text-foreground">No citations found</span>
+                            <p className="text-center text-xs">The summary did not return LV4 citation fields.</p>
+                          </div>
+                        );
+                      })()}
                     </TabsContent>
                   </Tabs>
                 </div>
               )}
             </CardContent>
           </Card>
+          )}
         </section>
+        {draftText && (
+          <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
+            <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle>Circular Draft</CardTitle>
+                <CardDescription>
+                  Review and edit the draft before exporting to Word.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setDraftText("")}
+                  className="gap-2"
+                >
+                  Discard Draft
+                </Button>
+                <Button onClick={handleExportDraft} disabled={isDocExporting} className="gap-2">
+                  {isDocExporting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Exporting…
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Export to Word
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                ref={draftRef as any}
+                value={draftText}
+                onChange={(e) => setDraftText(e.target.value)}
+                rows={20}
+                className="font-thai whitespace-pre-wrap"
+              />
+              {docError && (
+                <p className="mt-2 text-sm text-destructive-foreground">{docError}</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
           <CardHeader>
