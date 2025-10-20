@@ -397,79 +397,79 @@ export default function SummaryBotPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-10">
-        <section className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-sky-50 via-white to-indigo-100 p-6 sm:p-8 shadow-2xl">
+      <div className="space-y-8 md:space-y-12">
+        <section className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-sky-50 via-white to-indigo-100 p-5 sm:p-8 shadow-2xl">
           <div className="pointer-events-none absolute -top-32 -left-24 h-72 w-72 rounded-full bg-sky-200/35 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-36 -right-28 h-80 w-80 rounded-full bg-purple-200/30 blur-3xl" />
-          <div className="relative grid gap-6 lg:grid-cols-[2fr_3fr]">
-            <Card className="relative rounded-3xl border border-white/70 bg-white/85 shadow-xl backdrop-blur">
+          <div className="relative grid gap-6 xl:grid-cols-[2fr_3fr]">
+            <Card className="relative rounded-3xl border border-white/90 bg-white/95 shadow-xl backdrop-blur">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-sky-500 to-indigo-400" />
-            <CardHeader>
-              <Badge variant="secondary" className="w-fit">Automation</Badge>
-              <CardTitle>Summary file BOT (Beta)</CardTitle>
-              <CardDescription>
-                Run the AI-powered pipeline to download and summarize the latest BOT circular.
-                The insights will be captured below as a structured compliance brief.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
-              <p>
-                This workflow fetches the official PDF directly from the Bank of Thailand website,
-                extracts the core content on the server, and produces a concise summary with key
-                metadata and keywords for downstream review.
-              </p>
-              <p className="italic">
-                Expect the process to take up to a minute depending on the AI pipeline and network latency.
-              </p>
-              <div className="space-y-2 text-left">
-                <Label htmlFor="pdf-url" className="text-sm font-medium text-foreground">
-                  PDF source URL
-                </Label>
-                <Input
-                  id="pdf-url"
-                  placeholder="https://..."
-                  value={pdfUrl}
-                  onChange={(event) => setPdfUrl(event.target.value)}
+              <CardHeader className="space-y-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <Badge variant="secondary" className="w-fit">Automation</Badge>
+                    <CardTitle className="mt-3 text-2xl sm:text-3xl">Summary file BOT (Beta)</CardTitle>
+                    <CardDescription className="mt-2 text-sm sm:text-base">
+                      Run the AI-powered pipeline to download and summarize the latest BOT circular.
+                      The insights will be captured below as a structured compliance brief.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm text-muted-foreground">
+                <div className="space-y-2 text-left">
+                  <Label htmlFor="pdf-url" className="text-sm font-medium text-foreground">
+                    PDF source URL
+                  </Label>
+                  <Input
+                    id="pdf-url"
+                    placeholder="https://..."
+                    value={pdfUrl}
+                    onChange={(event) => setPdfUrl(event.target.value)}
+                    disabled={isLoading}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Provide a publicly accessible BOT circular link. Leave blank to run against the default reference PDF.
+                  </p>
+                </div>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="w-full text-sm text-muted-foreground sm:w-auto">
+                  {lastRunId ? (
+                    <>
+                      <span className="font-medium text-foreground">Last run:</span>{" "}
+                      <time dateTime={lastRunId}>
+                        {new Date(lastRunId).toLocaleString()}
+                      </time>
+                    </>
+                  ) : (
+                    "No runs yet"
+                  )}
+                </div>
+                <Button
+                  onClick={handleSummarize}
                   disabled={isLoading}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Provide a publicly accessible BOT circular link. Leave blank to run against the default reference PDF.
-                </p>
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div className="text-sm text-muted-foreground">
-                {lastRunId ? (
-                  <>
-                    <span className="font-medium text-foreground">Last run:</span>{" "}
-                    <time dateTime={lastRunId}>
-                      {new Date(lastRunId).toLocaleString()}
-                    </time>
-                  </>
-                ) : (
-                  "No runs yet"
-                )}
-              </div>
-              <Button onClick={handleSummarize} disabled={isLoading} className="gap-2">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Running…
-                  </>
-                ) : (
-                  <>
-                    <RefreshCcw className="h-4 w-4" />
-                    Run Summary
-                  </>
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
+                  className="w-full gap-2 sm:w-auto"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Running…
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCcw className="h-4 w-4" />
+                      Run Summary
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            </Card>
 
-            <Card className="relative rounded-3xl border border-white/70 bg-white/90 shadow-xl backdrop-blur min-h-[320px]">
+            <Card className="relative rounded-3xl border border-white/90 bg-white/95 shadow-xl backdrop-blur min-h-[320px]">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 via-blue-400 to-sky-400" />
               <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div className="space-y-1">
                     <CardTitle>Output snapshot</CardTitle>
                     <CardDescription>
@@ -479,7 +479,7 @@ export default function SummaryBotPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-2 rounded-full self-start sm:self-auto"
+                    className="w-full gap-2 rounded-full self-start md:w-auto md:self-auto"
                     onClick={handleDownloadExcel}
                     disabled={!hasResults || isLoading || isExporting}
                   >
@@ -497,7 +497,7 @@ export default function SummaryBotPage() {
                   </Button>
                 </div>
               </CardHeader>
-            <CardContent className="flex-1">
+              <CardContent className="flex-1">
               {isLoading && (
                 <div className="flex h-48 flex-col items-center justify-center gap-3 text-muted-foreground">
                   <Loader2 className="h-8 w-8 animate-spin" />
@@ -547,8 +547,8 @@ export default function SummaryBotPage() {
                     </TabsList>
 
                     <TabsContent value="lv3">
-                      <div className="rounded-xl border bg-background/70 backdrop-blur">
-                        <Table>
+                      <div className="overflow-x-auto rounded-xl border bg-background/70 backdrop-blur">
+                        <Table className="min-w-[560px]">
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-56">Field</TableHead>
@@ -588,8 +588,8 @@ export default function SummaryBotPage() {
                     <TabsContent value="lv4">
                       {citationTables.pairs.length > 0 ? (
                         <div className="space-y-4">
-                          <div className="rounded-xl border bg-background/70 backdrop-blur">
-                            <Table>
+                          <div className="overflow-x-auto rounded-xl border bg-background/70 backdrop-blur">
+                            <Table className="min-w-[640px]">
                               <TableHeader>
                                 <TableRow>
                                   <TableHead className="w-[260px]">Citation Name</TableHead>
@@ -608,8 +608,8 @@ export default function SummaryBotPage() {
                           </div>
 
                           {citationTables.meta.length > 0 && (
-                            <div className="rounded-xl border bg-background/70 backdrop-blur">
-                              <Table>
+                            <div className="overflow-x-auto rounded-xl border bg-background/70 backdrop-blur">
+                              <Table className="min-w-[560px]">
                                 <TableHeader>
                                   <TableRow>
                                     <TableHead className="w-56">Field</TableHead>
@@ -629,8 +629,8 @@ export default function SummaryBotPage() {
                           )}
                         </div>
                       ) : citationTables.fallback.length > 0 ? (
-                        <div className="rounded-xl border bg-background/70 backdrop-blur">
-                          <Table>
+                        <div className="overflow-x-auto rounded-xl border bg-background/70 backdrop-blur">
+                          <Table className="min-w-[560px]">
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="w-56">Field</TableHead>
@@ -662,19 +662,19 @@ export default function SummaryBotPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/70 bg-gradient-to-br from-white via-slate-50 to-sky-50/60 p-6 shadow-xl">
-          <Card className="relative rounded-3xl border border-white/70 bg-white/90 shadow-xl backdrop-blur">
+        <section className="rounded-3xl border border-white/70 bg-gradient-to-br from-white via-slate-50 to-sky-50/60 p-5 sm:p-6 shadow-xl">
+          <Card className="relative rounded-3xl border border-white/90 bg-white/95 shadow-xl backdrop-blur">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400" />
           <CardHeader>
-            <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-              <div>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-1">
                 <CardTitle>Latest BOT Regulations Snapshot</CardTitle>
                 <CardDescription>
                   Most recent circulars published by the Bank of Thailand (IssueBy: ธนาคารพาณิชย์จดทะเบียนในประเทศ, status: ใช้อยู่).
                 </CardDescription>
               </div>
               {scrapeMeta?.fetchedAt && (
-                <div className="text-xs text-muted-foreground md:text-right">
+                <div className="text-xs text-muted-foreground lg:text-right">
                   <p>
                     Updated {new Date(scrapeMeta.fetchedAt).toLocaleString()}
                     {typeof scrapeMeta.rawCount === "number" && scrapeMeta.rawCount > 0
@@ -683,12 +683,12 @@ export default function SummaryBotPage() {
                   </p>
                 </div>
               )}
-              <div className="mt-3 flex items-center gap-2 md:mt-0">
+              <div className="mt-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center lg:mt-0">
                 <Button
                   variant="outline"
                   onClick={handleScrapeOnly}
                   disabled={isLoading || isScraping}
-                  className="gap-2"
+                  className="w-full gap-2 sm:w-auto"
                 >
                   {isScraping ? (
                     <>
@@ -730,8 +730,8 @@ export default function SummaryBotPage() {
             )}
 
             {!scrapeError && hasScrapeResults && (
-              <div className="rounded-xl border bg-background/70 backdrop-blur">
-                <Table>
+              <div className="overflow-x-auto rounded-xl border bg-background/70 backdrop-blur">
+                <Table className="min-w-[700px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[120px]">ประเภท</TableHead>
