@@ -3,7 +3,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,8 +15,7 @@ import {
   SidebarMenuButton,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Moon, Sun, LogOut, FileText, Grid3x3, Zap } from "lucide-react";
+import { Moon, Sun, FileText, Grid3x3, Zap } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 
 const navLinks = [
@@ -26,12 +24,8 @@ const navLinks = [
 ];
 
 export default function AppSidebar() {
-  const { user, logout } = useAuth();
   const { setTheme } = useTheme();
   const pathname = usePathname();
-
-  const userInitials =
-    user?.name ? user.name.split(" ").map((n) => n[0]).join("") : "U";
 
   const isLinkActive = (href: string) => {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -89,30 +83,8 @@ export default function AppSidebar() {
 
         <SidebarSeparator />
 
-        <div className="flex items-center gap-3 p-2 group-data-[collapsible=icon]:justify-center">
-          <Avatar className="h-10 w-10">
-            <AvatarImage
-              src="https://placehold.co/100x100.png"
-              alt={user?.name}
-            />
-            <AvatarFallback>{userInitials}</AvatarFallback>
-          </Avatar>
-
-          <div className="flex flex-col group-data-[collapsible=icon]:hidden flex-1 min-w-0">
-            <p className="text-sm font-medium leading-none truncate">{user?.name}</p>
-            <p className="text-xs leading-none text-muted-foreground truncate">
-              {user?.email}
-            </p>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-auto group-data-[collapsible=icon]:hidden"
-            onClick={logout}
-          >
-            <LogOut />
-          </Button>
+        <div className="p-3 text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
+          Guest access enabled
         </div>
       </SidebarFooter>
     </Sidebar>
