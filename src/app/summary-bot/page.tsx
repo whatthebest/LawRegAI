@@ -462,9 +462,8 @@ export default function SummaryBotPage() {
 
     setIsExporting(true);
     try {
-      // Robust dynamic import for browser build (Next/Turbopack): try ESM first, then fallback
-      const XLSXMod: any = await import("xlsx/xlsx.mjs").catch(() => import("xlsx"));
-      const XLSX = (XLSXMod as any).default ?? XLSXMod;
+      // Dynamic import typed for Next/Turbopack browser build
+      const XLSX = await import("xlsx");
       const workbook = XLSX.utils.book_new();
 
       const lv3Header = lv3Rows.map((row) => row.field);
