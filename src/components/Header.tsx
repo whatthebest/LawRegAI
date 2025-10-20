@@ -23,7 +23,7 @@ export default function Header() {
             >
               <BrandMark size="sm" icon={Zap} />
               <span className="hidden sm:inline-block text-base font-semibold text-slate-900">
-                Compliance Standard Assurance
+                Regulation Change Management
               </span>
             </Link>
           </nav>

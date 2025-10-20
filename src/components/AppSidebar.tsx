@@ -40,7 +40,7 @@ export default function AppSidebar() {
         >
           <BrandMark size="lg" icon={Zap} />
           <span className="text-base leading-snug">
-            Compliance Standard Assurance
+            Regulation Change Management
           </span>
         </Link>
       </SidebarHeader>
