@@ -661,19 +661,15 @@ export default function SummaryBotExperience() {
               <Badge variant="secondary" className="w-fit">Automation</Badge>
               <CardTitle>Summary file BOT (Beta)</CardTitle>
               <CardDescription>
-                Run the AI-powered pipeline to download and summarize the latest BOT circular.
-                The insights will be captured below as a structured compliance brief.
+                Run the automation to pull the latest BOT circular and capture its insights in a structured brief.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-muted-foreground">
               <p>
-                This workflow fetches the official PDF directly from the Bank of Thailand website,
-                extracts the core content on the server, and produces a concise summary with key
-                metadata and keywords for downstream review.
+                The workflow fetches the source PDF from the Bank of Thailand, extracts the core content, and
+                assembles the summary with metadata ready for reviewers.
               </p>
-              <p className="italic">
-                Expect the process to take up to a minute depending on the AI pipeline and network latency.
-              </p>
+              <p className="italic">Typical processing time is under a minute.</p>
               <div className="space-y-2 text-left">
                 <Label htmlFor="pdf-url" className="text-sm font-medium text-foreground">
                   PDF source URL
@@ -721,7 +717,7 @@ export default function SummaryBotExperience() {
                   ) : (
                     <>
                       <FileText className="h-4 w-4" />
-                      Generate Draft
+                      Generate Draft นว.
                     </>
                   )}
                 </Button>
