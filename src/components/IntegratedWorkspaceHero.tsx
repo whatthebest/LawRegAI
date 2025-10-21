@@ -55,7 +55,7 @@ const defaultContent: HeroContent = {
     },
   ],
   ctas: [
-    { href: "/sops", label: "Launch SOPs Workflow" },
+    { href: "/summary-bot", label: "Launch Summary file BOT (Beta)" },
     { href: "/tasks", label: "View Project Tracker", variant: "ghost" },
   ],
   highlights: [

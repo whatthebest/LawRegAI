@@ -117,7 +117,7 @@ const features: HubFeature[] = [
 
 export default function IntegratedHubPage() {
   return (
-    <MainLayout>
+    <MainLayout hideSidebar>
       <div className="space-y-10">
         <IntegratedWorkspaceHero />
 

@@ -5,10 +5,14 @@ import { SidebarTrigger } from "./ui/sidebar";
 import { BrandMark } from "./BrandMark";
 import { Zap } from "lucide-react";
 
-export default function Header() {
+type HeaderProps = {
+  showSidebarTrigger?: boolean;
+};
+
+export default function Header({ showSidebarTrigger = true }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center">
+      <div className="flex h-16 w-full items-center px-4 md:px-6">
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-start">
           <div className="w-full flex-1 md:w-auto md:flex-none">
             {/* Search bar could go here */}
@@ -16,7 +20,7 @@ export default function Header() {
 
           {/* 👇 Sidebar + Logo รวมอยู่ด้วยกัน */}
           <nav className="flex items-center gap-3">
-            <SidebarTrigger />
+            {showSidebarTrigger && <SidebarTrigger />}
             <Link
               href="/"
               className="hidden md:flex items-center gap-2 font-bold text-lg"
@@ -30,9 +34,11 @@ export default function Header() {
         </div>
 
         {/* Mobile trigger */}
-        <div className="md:hidden">
-          <SidebarTrigger />
-        </div>
+        {showSidebarTrigger && (
+          <div className="md:hidden">
+            <SidebarTrigger />
+          </div>
+        )}
       </div>
     </header>
   );

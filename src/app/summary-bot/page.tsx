@@ -63,7 +63,7 @@ const summaryHeroContent: HeroContent = {
 
 export default function SummaryBotPage() {
   return (
-    <MainLayout>
+    <MainLayout hideSidebar>
       <div className="space-y-10">
         <IntegratedWorkspaceHero content={summaryHeroContent} />
         <SummaryBotExperience />
