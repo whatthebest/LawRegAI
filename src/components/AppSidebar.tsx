@@ -3,8 +3,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTheme } from "@/context/ThemeProvider";
-import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -15,7 +13,7 @@ import {
   SidebarMenuButton,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { Moon, Sun, FileText, Grid3x3, Zap } from "lucide-react";
+import { FileText, Grid3x3, Zap } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 
 const navLinks = [
@@ -24,7 +22,6 @@ const navLinks = [
 ];
 
 export default function AppSidebar() {
-  const { setTheme } = useTheme();
   const pathname = usePathname();
 
   const isLinkActive = (href: string) => {
@@ -67,20 +64,6 @@ export default function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="group-data-[collapsible=icon]:p-0">
-        <div className="flex flex-col gap-2 p-2 group-data-[collapsible=icon]:hidden">
-          <div className="flex items-center justify-between">
-            <span>Theme</span>
-            <div>
-              <Button variant="ghost" size="icon" onClick={() => setTheme("light")}>
-                <Sun className="h-[1.2rem] w-[1.2rem]" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => setTheme("dark")}>
-                <Moon className="h-[1.2rem] w-[1.2rem]" />
-              </Button>
-            </div>
-          </div>
-        </div>
-
         <SidebarSeparator />
 
         <div className="p-3 text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
