@@ -21,12 +21,9 @@ export default function Header({ showSidebarTrigger = true }: HeaderProps) {
           {/* 👇 Sidebar + Logo รวมอยู่ด้วยกัน */}
           <nav className="flex items-center gap-3">
             {showSidebarTrigger && <SidebarTrigger />}
-            <Link
-              href="/"
-              className="hidden md:flex items-center gap-2 font-bold text-lg"
-            >
+            <Link href="/" className="flex items-center gap-2 font-bold text-sm sm:text-lg whitespace-nowrap">
               <BrandMark size="sm" icon={Zap} />
-              <span className="hidden sm:inline-block text-base font-semibold text-slate-900">
+              <span className="font-semibold text-slate-900">
                 Regulation Change Management
               </span>
             </Link>
